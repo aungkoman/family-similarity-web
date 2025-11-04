@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Baby Face Similarity</title>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <style>
+    #canvas { position: absolute; top: 0; left: 0; }
+  </style>
+</head>
+<body>
+  <h1>Baby Face Similarity</h1>
+  <input type="file" id="imageUpload">
+  <canvas id="canvas"></canvas>
+  <div id="result"></div>
+
+  <script>
+    const imageUpload = document.getElementById('imageUpload');
+    const canvas = document.getElementById('canvas');
+    const resultDiv = document.getElementById('result');
+    const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+
+    Promise.all([
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+    ]).then(start).catch(err => {
+      console.error(err);
+      resultDiv.innerText = 'Failed to load face models. Please check your internet connection.';
+    });
+
+    function start() {
+      imageUpload.addEventListener('change', async () => {
+        if (!imageUpload.files || !imageUpload.files[0]) {
+          resultDiv.innerText = 'Please choose an image file.';
+          return;
+        }
+
+        const image = await faceapi.bufferToImage(imageUpload.files[0]);
+        const displaySize = { width: image.width, height: image.height };
+        canvas.width = image.width;
+        canvas.height = image.height;
+        document.body.append(image);
+
+        const detections = await faceapi
+          .detectAllFaces(image, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+          .withFaceLandmarks()
+          .withFaceDescriptors();
+        faceapi.matchDimensions(canvas, displaySize);
+        const resizedDetections = faceapi.resizeResults(detections, displaySize);
+        faceapi.draw.drawDetections(canvas, resizedDetections);
+
+        if (detections.length < 3) {
+          resultDiv.innerText = "Please ensure baby, mom, and dad are visible.";
+          return;
+        }
+
+        // Simple demo: first face = baby, second = mom, third = dad
+        const baby = detections[0].descriptor;
+        const mom = detections[1].descriptor;
+        const dad = detections[2].descriptor;
+
+        function cosineSim(a, b) {
+          let dot = 0, normA = 0, normB = 0;
+          for (let i = 0; i < a.length; i++) {
+            dot += a[i] * b[i];
+            normA += a[i] * a[i];
+            normB += b[i] * b[i];
+          }
+          return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+        }
+
+        const simMom = cosineSim(baby, mom);
+        const simDad = cosineSim(baby, dad);
+
+        resultDiv.innerText = simMom > simDad
+          ? `Baby looks more like Mom (Similarity: ${simMom.toFixed(2)})`
+          : `Baby looks more like Dad (Similarity: ${simDad.toFixed(2)})`;
+      });
+    }
+  </script>
+</body>
+</html>
