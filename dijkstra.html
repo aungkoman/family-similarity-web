@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Myanmar City Shortest Path (Dijkstra)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    #controls {
+      background: #f8f9fa;
+      padding: 10px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      flex-wrap: wrap;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    #map {
+      flex: 1;
+    }
+    select, button {
+      padding: 6px 10px;
+      margin: 5px;
+    }
+    #output {
+      margin-left: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label>From: 
+      <select id="fromCity"></select>
+    </label>
+    <label>To: 
+      <select id="toCity"></select>
+    </label>
+    <button id="findPath">Find Shortest Path</button>
+    <button id="resetData">Reset Data</button>
+    <span id="output"></span>
+  </div>
+  <div id="map"></div>
+
+  <script>
+    // --- Utility: Haversine distance (in km) ---
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 6371; // km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) *
+        Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    // --- Default city data ---
+    const defaultCities = [
+      { name: "Yangon", lat: 16.8661, lng: 96.1951 },
+      { name: "Mandalay", lat: 21.9588, lng: 96.0891 },
+      { name: "Naypyidaw", lat: 19.7633, lng: 96.0785 },
+      { name: "Bago", lat: 17.3369, lng: 96.4797 },
+      { name: "Taunggyi", lat: 20.7892, lng: 97.0378 },
+      { name: "Pathein", lat: 16.7792, lng: 94.7321 },
+      { name: "Mawlamyine", lat: 16.4905, lng: 97.6283 }
+    ];
+
+    // --- Initialize or load from localStorage ---
+    function getCities() {
+      const data = localStorage.getItem("mm_cities");
+      return data ? JSON.parse(data) : defaultCities;
+    }
+    function saveCities(cities) {
+      localStorage.setItem("mm_cities", JSON.stringify(cities));
+    }
+
+    let cities = getCities();
+    saveCities(cities);
+
+    // --- Build graph connections (complete graph, distances by lat/lng) ---
+    function buildGraph(cities) {
+      const graph = {};
+      for (let i = 0; i < cities.length; i++) {
+        const a = cities[i];
+        graph[a.name] = {};
+        for (let j = 0; j < cities.length; j++) {
+          if (i !== j) {
+            const b = cities[j];
+            graph[a.name][b.name] = haversine(a.lat, a.lng, b.lat, b.lng);
+          }
+        }
+      }
+      return graph;
+    }
+
+    const graph = buildGraph(cities);
+
+    // --- Dijkstra algorithm ---
+    function dijkstra(graph, start, end) {
+      const distances = {};
+      const prev = {};
+      const pq = new Set(Object.keys(graph));
+
+      for (const city in graph) {
+        distances[city] = Infinity;
+      }
+      distances[start] = 0;
+
+      while (pq.size > 0) {
+        const current = [...pq].reduce((a, b) =>
+          distances[a] < distances[b] ? a : b
+        );
+        pq.delete(current);
+
+        if (current === end) break;
+
+        for (const neighbor in graph[current]) {
+          const alt = distances[current] + graph[current][neighbor];
+          if (alt < distances[neighbor]) {
+            distances[neighbor] = alt;
+            prev[neighbor] = current;
+          }
+        }
+      }
+
+      // reconstruct path
+      const path = [];
+      let u = end;
+      while (u) {
+        path.unshift(u);
+        u = prev[u];
+      }
+
+      return { distance: distances[end], path };
+    }
+
+    // --- Leaflet map setup ---
+    const map = L.map("map").setView([19.7633, 96.0785], 6);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 8,
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+
+    const markers = {};
+    cities.forEach(city => {
+      markers[city.name] = L.marker([city.lat, city.lng])
+        .addTo(map)
+        .bindPopup(city.name);
+    });
+
+    // Draw all city connections (light gray)
+    const edges = [];
+    for (let i = 0; i < cities.length; i++) {
+      for (let j = i + 1; j < cities.length; j++) {
+        const a = cities[i], b = cities[j];
+        const line = L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
+          color: "#ccc",
+          weight: 1,
+        }).addTo(map);
+        edges.push(line);
+      }
+    }
+
+    // --- Populate dropdowns ---
+    const fromSel = document.getElementById("fromCity");
+    const toSel = document.getElementById("toCity");
+    cities.forEach(c => {
+      const opt1 = new Option(c.name, c.name);
+      const opt2 = new Option(c.name, c.name);
+      fromSel.add(opt1);
+      toSel.add(opt2);
+    });
+    fromSel.value = "Yangon";
+    toSel.value = "Mandalay";
+
+    let currentPathLine = null;
+
+    // --- Find Path button ---
+    document.getElementById("findPath").onclick = () => {
+      const from = fromSel.value;
+      const to = toSel.value;
+      const result = dijkstra(graph, from, to);
+      const { distance, path } = result;
+      document.getElementById("output").textContent =
+        `Shortest path: ${path.join(" → ")} (${distance.toFixed(2)} km)`;
+
+      if (currentPathLine) map.removeLayer(currentPathLine);
+
+      const coords = path.map(p => {
+        const c = cities.find(x => x.name === p);
+        return [c.lat, c.lng];
+      });
+
+      currentPathLine = L.polyline(coords, { color: "red", weight: 4 })
+        .addTo(map);
+      map.fitBounds(currentPathLine.getBounds());
+    };
+
+    // --- Reset data ---
+    document.getElementById("resetData").onclick = () => {
+      localStorage.removeItem("mm_cities");
+      alert("Data reset. Reloading...");
+      location.reload();
+    };
+  </script>
+</body>
+</html>

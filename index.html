@@ -2,7 +2,7 @@
 <html>
 <head>
   <title>Baby Face Similarity</title>
-  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <style>
     #canvas { position: absolute; top: 0; left: 0; }
   </style>
@@ -17,22 +17,34 @@
     const imageUpload = document.getElementById('imageUpload');
     const canvas = document.getElementById('canvas');
     const resultDiv = document.getElementById('result');
+    const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
 
     Promise.all([
-      faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
-      faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
-      faceapi.nets.faceLandmark68Net.loadFromUri('/models')
-    ]).then(start);
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+    ]).then(start).catch(err => {
+      console.error(err);
+      resultDiv.innerText = 'Failed to load face models. Please check your internet connection.';
+    });
 
     function start() {
       imageUpload.addEventListener('change', async () => {
+        if (!imageUpload.files || !imageUpload.files[0]) {
+          resultDiv.innerText = 'Please choose an image file.';
+          return;
+        }
+
         const image = await faceapi.bufferToImage(imageUpload.files[0]);
         const displaySize = { width: image.width, height: image.height };
         canvas.width = image.width;
         canvas.height = image.height;
         document.body.append(image);
 
-        const detections = await faceapi.detectAllFaces(image).withFaceLandmarks().withFaceDescriptors();
+        const detections = await faceapi
+          .detectAllFaces(image, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+          .withFaceLandmarks()
+          .withFaceDescriptors();
         faceapi.matchDimensions(canvas, displaySize);
         const resizedDetections = faceapi.resizeResults(detections, displaySize);
         faceapi.draw.drawDetections(canvas, resizedDetections);
