@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Relationship Finder</title>
+  <style>
+    :root {
+      --bg: #0b0f14; --fg: #e6e6e6; --muted: #94a3b8; --card: #111827; --border: #1f2937; --accent: #4cc9f0;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    header, main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    h1 { margin: 8px 0 12px; font-size: 22px; }
+    #controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    select, button { background: #0f172a; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+    #panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-top: 12px; }
+    #result { margin-top: 10px; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .person { background: #0f172a; border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+    .edge { color: var(--muted); font-size: 12px; }
+    @media (max-width: 780px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Family Relationship Finder</h1>
+    <div id="controls" role="group" aria-label="Select two people to find relationship">
+      <label>Person A: <select id="personA"></select></label>
+      <label>Person B: <select id="personB"></select></label>
+      <button id="findBtn">Find Relationship</button>
+      <span id="status" class="edge" aria-live="polite"></span>
+    </div>
+  </header>
+  <main>
+    <section id="panel" aria-label="Family overview">
+      <strong>People</strong>
+      <div class="grid" id="peopleGrid"></div>
+      <div id="result" aria-live="polite"></div>
+      <div id="path" class="edge"></div>
+    </section>
+  </main>
+
+  <script>
+    // --- Data model ---
+    // Nodes and edges with relationship type; sibling edges auto-generated from shared parents
+    const people = [
+      'Me','Wife','Child',
+      'MySibling1','MySibling2',
+      'WifeSibling1','WifeSibling2','WifeSibling3','WifeSibling4',
+      'MyFather','MyMother','WifeFather','WifeMother',
+      'MyFatherSibling1','MyFatherSibling2','MyFatherSibling3',
+      'MyMotherSibling1','MyMotherSibling2',
+      'WifeFatherSibling1','WifeFatherSibling2','WifeFatherSibling3',
+      'WifeMotherSibling1','WifeMotherSibling2'
+    ];
+
+    const edges = [];
+    function addEdge(a, b, type) { edges.push({ a, b, type }); }
+
+    // Spouse
+    addEdge('Me','Wife','spouse');
+
+    // Parents of me and my siblings
+    ['Me','MySibling1','MySibling2'].forEach(c => {
+      addEdge('MyFather', c, 'parent');
+      addEdge('MyMother', c, 'parent');
+    });
+
+    // Parents of wife and her siblings
+    ['Wife','WifeSibling1','WifeSibling2','WifeSibling3','WifeSibling4'].forEach(c => {
+      addEdge('WifeFather', c, 'parent');
+      addEdge('WifeMother', c, 'parent');
+    });
+
+    // Our child
+    ['Me','Wife'].forEach(p => addEdge(p, 'Child', 'parent'));
+
+    // Parents' siblings (uncles/aunts)
+    ['MyFatherSibling1','MyFatherSibling2','MyFatherSibling3'].forEach(s => addEdge('MyFather', s, 'sibling'));
+    ['MyMotherSibling1','MyMotherSibling2'].forEach(s => addEdge('MyMother', s, 'sibling'));
+    ['WifeFatherSibling1','WifeFatherSibling2','WifeFatherSibling3'].forEach(s => addEdge('WifeFather', s, 'sibling'));
+    ['WifeMotherSibling1','WifeMotherSibling2'].forEach(s => addEdge('WifeMother', s, 'sibling'));
+
+    // --- Build graph (undirected adjacency with labeled edges) ---
+    const graph = new Map();
+    people.forEach(p => graph.set(p, []));
+    for (const { a, b, type } of edges) {
+      // Add both directions with appropriate labels
+      const labelAB = type === 'parent' ? 'parentOf' : type === 'spouse' ? 'spouse' : type === 'sibling' ? 'siblingOf' : type;
+      const labelBA = type === 'parent' ? 'childOf' : type === 'spouse' ? 'spouse' : type === 'sibling' ? 'siblingOf' : type;
+      graph.get(a).push({ to: b, type: labelAB });
+      graph.get(b).push({ to: a, type: labelBA });
+    }
+
+    // Auto-generate sibling edges for children sharing both parents
+    function addSiblingEdges() {
+      // Build parent->children map
+      const parentChildren = new Map();
+      for (const [p, adj] of graph) {
+        for (const e of adj) if (e.type === 'parentOf') {
+          if (!parentChildren.has(p)) parentChildren.set(p, new Set());
+          parentChildren.get(p).add(e.to);
+        }
+      }
+      // For each pair of parents, add sibling edges among shared children
+      const childrenParents = new Map(); // child -> set of parents
+      for (const [parent, kids] of parentChildren) {
+        for (const k of kids) {
+          if (!childrenParents.has(k)) childrenParents.set(k, new Set());
+          childrenParents.get(k).add(parent);
+        }
+      }
+      const siblingsDone = new Set();
+      for (const [child, parents] of childrenParents) {
+        for (const [otherChild, otherParents] of childrenParents) {
+          if (child === otherChild) continue;
+          const key = [child, otherChild].sort().join('|');
+          if (siblingsDone.has(key)) continue;
+          // Siblings if share at least one parent (loose definition)
+          const shared = [...parents].some(p => otherParents.has(p));
+          if (shared) {
+            graph.get(child).push({ to: otherChild, type: 'siblingOf' });
+            graph.get(otherChild).push({ to: child, type: 'siblingOf' });
+            siblingsDone.add(key);
+          }
+        }
+      }
+    }
+    addSiblingEdges();
+
+    // --- UI population ---
+    const personA = document.getElementById('personA');
+    const personB = document.getElementById('personB');
+    const findBtn = document.getElementById('findBtn');
+    const resultEl = document.getElementById('result');
+    const pathEl = document.getElementById('path');
+    const gridEl = document.getElementById('peopleGrid');
+    const statusEl = document.getElementById('status');
+
+    function populate() {
+      people.forEach(p => {
+        personA.add(new Option(p, p));
+        personB.add(new Option(p, p));
+        const card = document.createElement('div');
+        card.className = 'person';
+        card.innerHTML = `<strong>${p}</strong>`;
+        gridEl.appendChild(card);
+      });
+      personA.value = 'Me';
+      personB.value = 'Wife';
+      statusEl.textContent = 'Dataset loaded';
+    }
+    populate();
+
+    // --- Relationship finder (BFS) ---
+    function bfs(start, goal) {
+      const queue = [[start]];
+      const visited = new Set([start]);
+      while (queue.length) {
+        const path = queue.shift();
+        const node = path[path.length - 1];
+        if (node === goal) return path;
+        for (const e of graph.get(node)) {
+          if (!visited.has(e.to)) {
+            visited.add(e.to);
+            queue.push([...path, e.to]);
+          }
+        }
+      }
+      return null;
+    }
+
+    function describePath(path) {
+      if (!path) return 'No relationship found.';
+      if (path.length === 2) {
+        // Direct relations
+        const a = path[0], b = path[1];
+        const edge = graph.get(a).find(e => e.to === b);
+        return edge ? prettyEdge(a, edge, b) : `${a} → ${b}`;
+      }
+      // Longer path: list each step
+      const steps = [];
+      for (let i = 0; i < path.length - 1; i++) {
+        const a = path[i], b = path[i+1];
+        const edge = graph.get(a).find(e => e.to === b);
+        steps.push(edge ? prettyEdge(a, edge, b) : `${a} → ${b}`);
+      }
+      return steps.join(' | ');
+    }
+
+    function prettyEdge(a, edge, b) {
+      switch (edge.type) {
+        case 'spouse': return `${a} and ${b} are spouses`;
+        case 'parentOf': return `${a} is parent of ${b}`;
+        case 'childOf': return `${a} is child of ${b}`;
+        case 'siblingOf': return `${a} and ${b} are siblings`;
+        default: return `${a} → ${b} (${edge.type})`;
+      }
+    }
+
+    findBtn.addEventListener('click', () => {
+      const a = personA.value, b = personB.value;
+      if (!a || !b || a === b) { resultEl.textContent = 'Choose two different people.'; pathEl.textContent=''; return; }
+      const path = bfs(a, b);
+      resultEl.textContent = `Relationship between ${a} and ${b}`;
+      pathEl.textContent = describePath(path);
+    });
+  </script>
+</body>
+</html>

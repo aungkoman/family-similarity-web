@@ -1,4 +1,20 @@
 <!DOCTYPE html>
+<!--
+  Family Similarity Demo
+  ---------------------------------
+  This single-file web app uses face-api.js (TensorFlow.js models) to:
+  - Load a family photo
+  - Detect faces and extract thumbnails
+  - Let the user tag Baby, Mom, and Dad directly on each face card
+  - Compute similarity (cosine) between Baby↔Mom and Baby↔Dad
+
+  Key concepts to learn:
+  - Web page structure: semantic HTML with a sidebar panel
+  - Styling: modern CSS variables and a simple grid layout
+  - Face detection pipeline: face-api.js model loading, detection, resizing
+  - UX: thumbnails and per-face dropdowns for role tagging
+  - Math: cosine similarity and basic validation of inputs
+-->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -6,6 +22,7 @@
   <title>Family Similarity</title>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <style>
+    /* CSS Overview: variables (theme), layout grid, panel and card styling */
     :root {
       --bg: #0b0f14;
       --fg: #e6e6e6;
@@ -37,6 +54,7 @@
 </head>
 <body>
   <header role="banner">
+    <!-- Top area: uploader and clear action -->
     <h1>Family Similarity</h1>
     <div id="uploader" role="group" aria-label="Upload family photo">
       <input type="file" id="imageUpload" accept="image/*" aria-label="Choose a family photo" />
@@ -45,6 +63,7 @@
   </header>
   <main role="main">
     <div id="workspace">
+      <!-- Left: photo + detection overlay canvas -->
       <div id="imageContainer">
         <img id="photo" alt="Uploaded family photo" />
         <canvas id="canvas" aria-label="Detections overlay"></canvas>
@@ -54,6 +73,7 @@
           <strong>Tag Family Members</strong>
         </div>
         <div id="facesList" aria-live="polite"></div>
+        <!-- Button to compute similarity between assigned roles -->
         <button id="calcBtn" aria-label="Calculate similarity">Calculate Similarity</button>
         <div id="result" aria-live="polite"></div>
       </aside>
@@ -61,7 +81,7 @@
   </main>
 
   <script>
-    const imageUpload = document.getElementById('imageUpload');
+    const imageUpload = document.getElementById('imageUpload'); // file input
     const clearBtn = document.getElementById('clearBtn');
     const canvas = document.getElementById('canvas');
     const photo = document.getElementById('photo');
@@ -70,9 +90,10 @@
     const calcBtn = document.getElementById('calcBtn');
     const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
 
-    let faces = []; // { descriptor, box, canvas }
+    let faces = []; // per-face: { descriptor, box, canvas }
     let rolesMap = { baby: null, mom: null, dad: null }; // assigned roles by face index
 
+    // Load models required for detection + recognition
     Promise.all([
       faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
@@ -86,6 +107,7 @@
     });
 
     function start() {
+      // Handle image selection to run face detection pipeline
       imageUpload.addEventListener('change', async () => {
         if (!imageUpload.files || !imageUpload.files[0]) {
           resultDiv.innerText = 'Please choose an image file.';
@@ -112,7 +134,7 @@
           return;
         }
 
-        // Draw boxes with index
+        // Draw boxes with index labels on overlay canvas
         ctx.clearRect(0,0,canvas.width, canvas.height);
         faceapi.matchDimensions(canvas, displaySize);
         const resized = faceapi.resizeResults(detections, displaySize);
@@ -126,7 +148,7 @@
           ctx.fillText(`#${idx+1}`, x + 4, y + 16);
         });
 
-        // Extract face thumbnails
+        // Extract per-face thumbnails for UI
         const boxes = resized.map(r => r.detection.box);
         const extracted = await faceapi.extractFaces(photo, boxes);
         faces = resized.map((r, i) => ({ descriptor: r.descriptor, box: r.detection.box, canvas: extracted[i] }));
@@ -148,6 +170,7 @@
     }
 
     function populateFacesUI() {
+      // Build cards (thumbnail + role dropdown) for each detected face
       facesList.innerHTML = '';
       faces.forEach((f, i) => {
         const item = document.createElement('div');
@@ -172,7 +195,7 @@
         item.appendChild(thumb); item.appendChild(meta);
         facesList.appendChild(item);
 
-        const roleSel = meta.querySelector('.roleSel');
+        const roleSel = meta.querySelector('.roleSel'); // dropdown for assigning role
         if (rolesMap.baby === i) roleSel.value = 'baby';
         else if (rolesMap.mom === i) roleSel.value = 'mom';
         else if (rolesMap.dad === i) roleSel.value = 'dad';
@@ -182,6 +205,7 @@
     }
 
     function assignRole(role, index) {
+      // Ensure each role is unique and each face holds at most one role
       // clear roles currently assigned to this face index
       for (const r of ['baby','mom','dad']) {
         if (rolesMap[r] === index) rolesMap[r] = null;
@@ -204,6 +228,7 @@
     }
 
     function cosineSim(a, b) {
+      // Cosine similarity: (a·b)/(||a||*||b||)
       let dot = 0, normA = 0, normB = 0;
       for (let i = 0; i < a.length; i++) {
         dot += a[i] * b[i];
@@ -214,6 +239,7 @@
     }
 
     calcBtn.addEventListener('click', () => {
+      // Validate roles and compute similarity percentages
       if (!faces.length) { resultDiv.innerText = 'Upload a photo first.'; return; }
       const bi = rolesMap.baby, mi = rolesMap.mom, di = rolesMap.dad;
       if (bi === null || mi === null || di === null) {
