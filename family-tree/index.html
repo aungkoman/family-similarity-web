@@ -43,8 +43,8 @@
   </main>
 
   <script>
-    // --- Data model ---
-    // Nodes and edges with relationship type; sibling edges auto-generated from shared parents
+    // --- Data model (marriages + child -> marriage link) ---
+    // Store marriages explicitly; children link to a marriage id
     const people = [
       'Me','Wife','Child',
       'MySibling1','MySibling2',
@@ -53,82 +53,74 @@
       'MyFatherSibling1','MyFatherSibling2','MyFatherSibling3',
       'MyMotherSibling1','MyMotherSibling2',
       'WifeFatherSibling1','WifeFatherSibling2','WifeFatherSibling3',
-      'WifeMotherSibling1','WifeMotherSibling2'
+      'WifeMotherSibling1','WifeMotherSibling2',
+      // Grandparents (for sibling inference across parents)
+      'MyGrandfather','MyGrandmother',
+      'MyMaternalGrandfather','MyMaternalGrandmother',
+      'WifeGrandfather','WifeGrandmother',
+      'WifeMaternalGrandfather','WifeMaternalGrandmother'
     ];
 
-    const edges = [];
-    function addEdge(a, b, type) { edges.push({ a, b, type }); }
+    const marriages = [
+      { id: 'm_me', spouses: ['Me','Wife'] },
+      { id: 'm_myParents', spouses: ['MyFather','MyMother'] },
+      { id: 'm_wifeParents', spouses: ['WifeFather','WifeMother'] },
+      { id: 'm_myPaternalGrand', spouses: ['MyGrandfather','MyGrandmother'] },
+      { id: 'm_myMaternalGrand', spouses: ['MyMaternalGrandfather','MyMaternalGrandmother'] },
+      { id: 'm_wifePaternalGrand', spouses: ['WifeGrandfather','WifeGrandmother'] },
+      { id: 'm_wifeMaternalGrand', spouses: ['WifeMaternalGrandfather','WifeMaternalGrandmother'] },
+    ];
 
-    // Spouse
-    addEdge('Me','Wife','spouse');
-
-    // Parents of me and my siblings
-    ['Me','MySibling1','MySibling2'].forEach(c => {
-      addEdge('MyFather', c, 'parent');
-      addEdge('MyMother', c, 'parent');
-    });
-
-    // Parents of wife and her siblings
-    ['Wife','WifeSibling1','WifeSibling2','WifeSibling3','WifeSibling4'].forEach(c => {
-      addEdge('WifeFather', c, 'parent');
-      addEdge('WifeMother', c, 'parent');
-    });
-
-    // Our child
-    ['Me','Wife'].forEach(p => addEdge(p, 'Child', 'parent'));
-
-    // Parents' siblings (uncles/aunts)
-    ['MyFatherSibling1','MyFatherSibling2','MyFatherSibling3'].forEach(s => addEdge('MyFather', s, 'sibling'));
-    ['MyMotherSibling1','MyMotherSibling2'].forEach(s => addEdge('MyMother', s, 'sibling'));
-    ['WifeFatherSibling1','WifeFatherSibling2','WifeFatherSibling3'].forEach(s => addEdge('WifeFather', s, 'sibling'));
-    ['WifeMotherSibling1','WifeMotherSibling2'].forEach(s => addEdge('WifeMother', s, 'sibling'));
+    const childToMarriage = {
+      // Our nuclear families
+      'Child': 'm_me',
+      'Me': 'm_myParents', 'MySibling1': 'm_myParents', 'MySibling2': 'm_myParents',
+      'Wife': 'm_wifeParents', 'WifeSibling1': 'm_wifeParents', 'WifeSibling2': 'm_wifeParents', 'WifeSibling3': 'm_wifeParents', 'WifeSibling4': 'm_wifeParents',
+      // Parents are children of their grandparents' marriages (to infer their siblings)
+      'MyFather': 'm_myPaternalGrand', 'MyFatherSibling1': 'm_myPaternalGrand', 'MyFatherSibling2': 'm_myPaternalGrand', 'MyFatherSibling3': 'm_myPaternalGrand',
+      'MyMother': 'm_myMaternalGrand', 'MyMotherSibling1': 'm_myMaternalGrand', 'MyMotherSibling2': 'm_myMaternalGrand',
+      'WifeFather': 'm_wifePaternalGrand', 'WifeFatherSibling1': 'm_wifePaternalGrand', 'WifeFatherSibling2': 'm_wifePaternalGrand', 'WifeFatherSibling3': 'm_wifePaternalGrand',
+      'WifeMother': 'm_wifeMaternalGrand', 'WifeMotherSibling1': 'm_wifeMaternalGrand', 'WifeMotherSibling2': 'm_wifeMaternalGrand',
+    };
 
     // --- Build graph (undirected adjacency with labeled edges) ---
     const graph = new Map();
     people.forEach(p => graph.set(p, []));
-    for (const { a, b, type } of edges) {
-      // Add both directions with appropriate labels
-      const labelAB = type === 'parent' ? 'parentOf' : type === 'spouse' ? 'spouse' : type === 'sibling' ? 'siblingOf' : type;
-      const labelBA = type === 'parent' ? 'childOf' : type === 'spouse' ? 'spouse' : type === 'sibling' ? 'siblingOf' : type;
-      graph.get(a).push({ to: b, type: labelAB });
-      graph.get(b).push({ to: a, type: labelBA });
+
+    // Spouse links from marriages
+    for (const m of marriages) {
+      const [a,b] = m.spouses;
+      if (!a || !b) continue;
+      graph.get(a).push({ to: b, type: 'spouse' });
+      graph.get(b).push({ to: a, type: 'spouse' });
     }
 
-    // Auto-generate sibling edges for children sharing both parents
-    function addSiblingEdges() {
-      // Build parent->children map
-      const parentChildren = new Map();
-      for (const [p, adj] of graph) {
-        for (const e of adj) if (e.type === 'parentOf') {
-          if (!parentChildren.has(p)) parentChildren.set(p, new Set());
-          parentChildren.get(p).add(e.to);
-        }
-      }
-      // For each pair of parents, add sibling edges among shared children
-      const childrenParents = new Map(); // child -> set of parents
-      for (const [parent, kids] of parentChildren) {
-        for (const k of kids) {
-          if (!childrenParents.has(k)) childrenParents.set(k, new Set());
-          childrenParents.get(k).add(parent);
-        }
-      }
-      const siblingsDone = new Set();
-      for (const [child, parents] of childrenParents) {
-        for (const [otherChild, otherParents] of childrenParents) {
-          if (child === otherChild) continue;
-          const key = [child, otherChild].sort().join('|');
-          if (siblingsDone.has(key)) continue;
-          // Siblings if share at least one parent (loose definition)
-          const shared = [...parents].some(p => otherParents.has(p));
-          if (shared) {
-            graph.get(child).push({ to: otherChild, type: 'siblingOf' });
-            graph.get(otherChild).push({ to: child, type: 'siblingOf' });
-            siblingsDone.add(key);
-          }
+    // Parent/child links derived from child->marriage and marriage spouses
+    const childrenByMarriage = new Map();
+    for (const [child, mid] of Object.entries(childToMarriage)) {
+      if (!childrenByMarriage.has(mid)) childrenByMarriage.set(mid, []);
+      childrenByMarriage.get(mid).push(child);
+    }
+    for (const m of marriages) {
+      const kids = childrenByMarriage.get(m.id) || [];
+      for (const child of kids) {
+        for (const spouse of m.spouses) {
+          graph.get(spouse).push({ to: child, type: 'parentOf' });
+          graph.get(child).push({ to: spouse, type: 'childOf' });
         }
       }
     }
-    addSiblingEdges();
+
+    // Sibling links: children of the same marriage are siblings
+    for (const [mid, kids] of childrenByMarriage) {
+      for (let i = 0; i < kids.length; i++) {
+        for (let j = i + 1; j < kids.length; j++) {
+          const a = kids[i], b = kids[j];
+          graph.get(a).push({ to: b, type: 'siblingOf' });
+          graph.get(b).push({ to: a, type: 'siblingOf' });
+        }
+      }
+    }
 
     // --- UI population ---
     const personA = document.getElementById('personA');
@@ -200,12 +192,83 @@
       }
     }
 
+    // --- Relationship name inference and step words ---
+    function edgeTypesForPath(path) {
+      const types = [];
+      for (let i = 0; i < path.length - 1; i++) {
+        const a = path[i], b = path[i+1];
+        const edge = graph.get(a).find(e => e.to === b);
+        types.push(edge ? edge.type : 'unknown');
+      }
+      return types;
+    }
+
+    function inferRelationshipName(a, b, path) {
+      if (!path || path.length < 2) return '';
+      const types = edgeTypesForPath(path);
+      const key = types.join('>');
+      // Simple patterns
+      if (key === 'spouse') return 'Spouse';
+      if (key === 'parentOf') return 'Parent';
+      if (key === 'childOf') return 'Child';
+      if (key === 'siblingOf') return 'Sibling';
+      if (key === 'parentOf>parentOf') return 'Grandparent';
+      if (key === 'childOf>childOf') return 'Grandchild';
+      if (key === 'childOf>siblingOf') return 'Uncle/Aunt';
+      if (key === 'siblingOf>childOf') return 'Niece/Nephew';
+      if (key === 'parentOf>siblingOf>childOf') return 'Cousin';
+      if (key === 'spouse>parentOf') return 'Parent-in-law';
+      if (key === 'parentOf>spouse') return 'Parent-in-law';
+      if (key === 'spouse>siblingOf' || key === 'siblingOf>spouse') return 'Sibling-in-law';
+      return 'Related';
+    }
+
+    function stepWords(path) {
+      if (!path || path.length < 2) return '';
+      const words = [];
+      for (let i = 0; i < path.length - 1; i++) {
+        const a = path[i], b = path[i+1];
+        const edge = graph.get(a).find(e => e.to === b);
+        if (!edge) { words.push('step'); continue; }
+        if (edge.type === 'childOf') {
+          // a -> b (b is parent)
+          words.push('child');
+          // middle node description
+          const pName = b.toLowerCase();
+          if (pName.includes('father') || pName.includes('dad')) words.push('dad');
+          else if (pName.includes('mother') || pName.includes('mom')) words.push('mom');
+          else words.push('parent');
+        } else if (edge.type === 'parentOf') {
+          words.push('parent');
+          const cName = b.toLowerCase();
+          if (cName.includes('child')) words.push('child');
+          else words.push('offspring');
+        } else if (edge.type === 'spouse') {
+          words.push('spouse');
+        } else if (edge.type === 'siblingOf') {
+          words.push('sibling');
+        } else {
+          words.push(edge.type);
+        }
+      }
+      // Special case to produce three-word sequence for child->parent->sibling
+      const types = edgeTypesForPath(path);
+      if (types.length === 2 && types[0] === 'childOf' && types[1] === 'siblingOf') {
+        // words currently: ['child','dad|mom|parent','sibling']
+        return words.join(' - ');
+      }
+      return words.join(' - ');
+    }
+
     findBtn.addEventListener('click', () => {
       const a = personA.value, b = personB.value;
       if (!a || !b || a === b) { resultEl.textContent = 'Choose two different people.'; pathEl.textContent=''; return; }
       const path = bfs(a, b);
-      resultEl.textContent = `Relationship between ${a} and ${b}`;
-      pathEl.textContent = describePath(path);
+      const relName = inferRelationshipName(a, b, path);
+      resultEl.textContent = `Relationship between ${a} and ${b}: ${relName}`;
+      const steps = stepWords(path);
+      const verbose = describePath(path);
+      pathEl.textContent = `Steps: ${steps} \nPath: ${verbose}`;
     });
   </script>
 </body>
