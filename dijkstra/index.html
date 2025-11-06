@@ -22,7 +22,7 @@
       background: #f8f9fa;
       padding: 10px;
       display: flex;
-      justify-content: space-around;
+      justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -38,6 +38,23 @@
       margin-left: 10px;
       font-weight: bold;
     }
+    #connectionsPanel {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    #edgeList {
+      max-height: 140px;
+      overflow: auto;
+      background: #ffffff;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+    #edgeList div { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px dashed #eee; }
+    #edgeList div:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
@@ -51,6 +68,20 @@
     <button id="findPath">Find Shortest Path</button>
     <button id="resetData">Reset Data</button>
     <span id="output"></span>
+
+    <div id="connectionsPanel">
+      <div>
+        <strong>Manage Connections</strong><br/>
+        <label>A: <select id="cityA"></select></label>
+        <label>B: <select id="cityB"></select></label>
+        <button id="addConn">Add Connection</button>
+        <button id="resetConn">Reset Connections</button>
+      </div>
+      <div>
+        <strong>Existing Connections</strong>
+        <div id="edgeList" aria-live="polite"></div>
+      </div>
+    </div>
   </div>
   <div id="map"></div>
 
@@ -91,23 +122,39 @@
     let cities = getCities();
     saveCities(cities);
 
-    // --- Build graph connections (complete graph, distances by lat/lng) ---
-    function buildGraph(cities) {
+    // --- Graph persistence ---
+    function buildNearestNeighborGraph(cities) {
       const graph = {};
       for (let i = 0; i < cities.length; i++) {
         const a = cities[i];
-        graph[a.name] = {};
+        graph[a.name] = graph[a.name] || {};
+        let best = null, bestD = Infinity;
         for (let j = 0; j < cities.length; j++) {
-          if (i !== j) {
-            const b = cities[j];
-            graph[a.name][b.name] = haversine(a.lat, a.lng, b.lat, b.lng);
-          }
+          if (i === j) continue;
+          const b = cities[j];
+          const d = haversine(a.lat, a.lng, b.lat, b.lng);
+          if (d < bestD) { bestD = d; best = b; }
+        }
+        if (best) {
+          graph[a.name][best.name] = bestD;
+          graph[best.name] = graph[best.name] || {};
+          graph[best.name][a.name] = bestD; // undirected
         }
       }
       return graph;
     }
+    function getGraph(cities) {
+      const data = localStorage.getItem("mm_graph");
+      if (data) return JSON.parse(data);
+      const g = buildNearestNeighborGraph(cities);
+      localStorage.setItem("mm_graph", JSON.stringify(g));
+      return g;
+    }
+    function saveGraph(graph) {
+      localStorage.setItem("mm_graph", JSON.stringify(graph));
+    }
 
-    const graph = buildGraph(cities);
+    let graph = getGraph(cities);
 
     // --- Dijkstra algorithm ---
     function dijkstra(graph, start, end) {
@@ -162,27 +209,42 @@
         .bindPopup(city.name);
     });
 
-    // Draw all city connections (light gray)
-    const edges = [];
-    for (let i = 0; i < cities.length; i++) {
-      for (let j = i + 1; j < cities.length; j++) {
-        const a = cities[i], b = cities[j];
-        const line = L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
-          color: "#ccc",
-          weight: 1,
-        }).addTo(map);
-        edges.push(line);
+    // Draw connections from graph (unique pairs)
+    let edges = [];
+    function getCityByName(n) { return cities.find(c => c.name === n); }
+    function clearEdges() { edges.forEach(e => map.removeLayer(e)); edges = []; }
+    function drawEdges() {
+      clearEdges();
+      const seen = new Set();
+      for (const a in graph) {
+        for (const b in graph[a]) {
+          const key = [a, b].sort().join("|");
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const ca = getCityByName(a), cb = getCityByName(b);
+          if (!ca || !cb) continue;
+          const line = L.polyline([[ca.lat, ca.lng], [cb.lat, cb.lng]], {
+            color: "#ccc",
+            weight: 2,
+          }).addTo(map);
+          edges.push(line);
+        }
       }
     }
+    drawEdges();
 
     // --- Populate dropdowns ---
     const fromSel = document.getElementById("fromCity");
     const toSel = document.getElementById("toCity");
+    const cityA = document.getElementById("cityA");
+    const cityB = document.getElementById("cityB");
     cities.forEach(c => {
       const opt1 = new Option(c.name, c.name);
       const opt2 = new Option(c.name, c.name);
       fromSel.add(opt1);
       toSel.add(opt2);
+      cityA.add(new Option(c.name, c.name));
+      cityB.add(new Option(c.name, c.name));
     });
     fromSel.value = "Yangon";
     toSel.value = "Mandalay";
@@ -213,8 +275,57 @@
     // --- Reset data ---
     document.getElementById("resetData").onclick = () => {
       localStorage.removeItem("mm_cities");
+      localStorage.removeItem("mm_graph");
       alert("Data reset. Reloading...");
       location.reload();
+    };
+
+    // --- Manage connections ---
+    const edgeListEl = document.getElementById('edgeList');
+    function renderEdgeList() {
+      edgeListEl.innerHTML = '';
+      const seen = new Set();
+      for (const a in graph) {
+        for (const b in graph[a]) {
+          const key = [a,b].sort().join('|');
+          if (seen.has(key)) continue; seen.add(key);
+          const row = document.createElement('div');
+          row.innerHTML = `<span>${a} 862 ${b}</span>`; // arrow-like separator
+          const btn = document.createElement('button');
+          btn.textContent = 'Remove';
+          btn.onclick = () => {
+            delete graph[a][b];
+            if (graph[b]) delete graph[b][a];
+            saveGraph(graph);
+            drawEdges();
+            renderEdgeList();
+          };
+          row.appendChild(btn);
+          edgeListEl.appendChild(row);
+        }
+      }
+      if (!edgeListEl.children.length) edgeListEl.textContent = 'No connections yet.';
+    }
+    renderEdgeList();
+
+    document.getElementById('addConn').onclick = () => {
+      const a = cityA.value; const b = cityB.value;
+      if (!a || !b || a === b) return alert('Choose two different towns.');
+      const ca = getCityByName(a); const cb = getCityByName(b);
+      if (!ca || !cb) return alert('Invalid town selection.');
+      const d = haversine(ca.lat, ca.lng, cb.lat, cb.lng);
+      graph[a] = graph[a] || {}; graph[b] = graph[b] || {};
+      graph[a][b] = d; graph[b][a] = d;
+      saveGraph(graph);
+      drawEdges();
+      renderEdgeList();
+    };
+
+    document.getElementById('resetConn').onclick = () => {
+      graph = buildNearestNeighborGraph(cities);
+      saveGraph(graph);
+      drawEdges();
+      renderEdgeList();
     };
   </script>
 </body>

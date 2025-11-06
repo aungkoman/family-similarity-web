@@ -1,7 +1,165 @@
-Main Page 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Project Hub</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --bg-grad-a: #0b0f14;
+      --bg-grad-b: #0f172a;
+      --card: #111827;
+      --card-hover: #0f172a;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #4cc9f0;
+      --accent2: #a78bfa;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 80% -10%, rgba(76, 201, 240, 0.15), transparent 60%),
+                  radial-gradient(1000px 500px at 10% 110%, rgba(167, 139, 250, 0.15), transparent 60%),
+                  linear-gradient(180deg, var(--bg-grad-a), var(--bg-grad-b));
+    }
+    header {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 32px 20px 8px;
+    }
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .title h1 { font-size: 28px; margin: 0; }
+    .subtitle { color: var(--muted); margin-top: 6px; font-size: 15px; }
+    .grid {
+      max-width: 1080px;
+      margin: 16px auto 40px;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    @media (max-width: 960px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .card:hover { transform: translateY(-2px); background: var(--card-hover); border-color: #283446; }
+    .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .icon {
+      width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+      background: linear-gradient(135deg, rgba(76,201,240,0.2), rgba(167,139,250,0.2));
+      border: 1px solid #264058;
+    }
+    .card h2 { font-size: 18px; margin: 6px 0 0 0; }
+    .desc { color: var(--muted); font-size: 14px; }
+    .cta { margin-top: auto; display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 600; }
+    .cta svg { transition: transform 160ms ease; }
+    .card:hover .cta svg { transform: translateX(4px); }
+    footer {
+      max-width: 1080px; margin: 0 auto; padding: 16px 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .badge { background: #101826; border: 1px solid #243447; color: var(--muted); padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+  </style>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+  <meta name="color-scheme" content="dark light" />
+</head>
+<body>
+  <header role="banner">
+    <div class="title">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 12h16M12 4v16" stroke="url(#g)" stroke-width="2" stroke-linecap="round" />
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="24" y2="24">
+            <stop stop-color="#4cc9f0" />
+            <stop offset="1" stop-color="#a78bfa" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <h1>Project Hub</h1>
+      <span class="badge" aria-label="status badge">Modernized Home</span>
+    </div>
+    <div class="subtitle">Explore interactive demos with clean design and smooth performance.</div>
+  </header>
 
-Link to projects
+  <main role="main" aria-label="Project cards">
+    <section class="grid">
+      <a class="card" href="./dijkstra/" aria-label="Open Dijkstra's Algorithm demo">
+        <div class="icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 20l3-8 6 3 3-11" stroke="#4cc9f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="6" cy="20" r="2" fill="#4cc9f0" />
+            <circle cx="9" cy="12" r="2" fill="#a78bfa" />
+            <circle cx="15" cy="15" r="2" fill="#4cc9f0" />
+            <circle cx="21" cy="4" r="2" fill="#a78bfa" />
+          </svg>
+        </div>
+        <h2>Dijkstra's Algorithm</h2>
+        <p class="desc">Find shortest paths across cities on an interactive Leaflet map.</p>
+        <span class="cta">Open Demo
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 12h14M13 5l7 7-7 7" stroke="#4cc9f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </span>
+      </a>
 
-<a href="./dijkstra/">Dijkstra's Algorithm</a>
-<a href="./family-similarity/">Family Similarity</a>
-<a href="./audio-visualizer/">Real-Time Audio Visualizer</a>
+      <a class="card" href="./family-similarity/" aria-label="Open Family Similarity demo">
+        <div class="icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 0a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="#a78bfa" stroke-width="2" />
+            <path d="M2 20c0-3.866 3.582-7 8-7s8 3.134 8 7" stroke="#4cc9f0" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <h2>Family Similarity</h2>
+        <p class="desc">Compare baby resemblance using face recognition and cosine similarity.</p>
+        <span class="cta">Open Demo
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 12h14M13 5l7 7-7 7" stroke="#4cc9f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </span>
+      </a>
+
+      <a class="card" href="./audio-visualizer/" aria-label="Open Real-Time Audio Visualizer">
+        <div class="icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 12h2m2-6v12m3-3v3m3-9v9m3-6v6m3-12v12" stroke="#4cc9f0" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <h2>Real-Time Audio Visualizer</h2>
+        <p class="desc">Capture mic or file audio and view waveform, spectrum, and particles.</p>
+        <span class="cta">Open Demo
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 12h14M13 5l7 7-7 7" stroke="#4cc9f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </span>
+      </a>
+    </section>
+  </main>
+
+  <footer role="contentinfo">
+    <div>Built with HTML, CSS, and JavaScript. Accessible, responsive, and fast.</div>
+    <div class="badge">FPS-friendly UI • ARIA labels • Keyboard-nav</div>
+  </footer>
+</body>
+</html>
