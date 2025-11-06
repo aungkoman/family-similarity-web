@@ -1,29 +1,93 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Baby Face Similarity</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Similarity</title>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <style>
+    :root {
+      --bg: #0b0f14;
+      --fg: #e6e6e6;
+      --muted: #94a3b8;
+      --accent: #4cc9f0;
+      --card: #111827;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    header, main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    h1 { margin: 8px 0 12px; font-size: 22px; }
+    #uploader { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    #uploader input[type="file"], button, select { background: #0f172a; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+    #workspace { position: relative; display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-top: 12px; }
+    #imageContainer { position: relative; }
     #canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+    #imageContainer img { max-width: 100%; height: auto; display: block; }
+    #panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    #facesList { display: grid; gap: 8px; }
+    .faceItem { display: grid; grid-template-columns: 56px 1fr; gap: 8px; align-items: center; border-bottom: 1px dashed #1e293b; padding-bottom: 8px; }
+    .faceItem:last-child { border-bottom: none; }
+    .thumb { width: 56px; height: 56px; border-radius: 8px; border: 1px solid var(--border); background: #0f172a; overflow: hidden; }
+    .row { display: flex; gap: 6px; align-items: center; }
+    .meta { font-size: 12px; color: var(--muted); }
+    #roles { display: grid; gap: 8px; margin-top: 8px; }
+    #result { margin-top: 10px; font-weight: 600; }
   </style>
 </head>
 <body>
-  <h1>Baby Face Similarity</h1>
-  <input type="file" id="imageUpload">
-  <canvas id="canvas"></canvas>
-  <div id="result"></div>
+  <header role="banner">
+    <h1>Family Similarity</h1>
+    <div id="uploader" role="group" aria-label="Upload family photo">
+      <input type="file" id="imageUpload" accept="image/*" aria-label="Choose a family photo" />
+      <button id="clearBtn" aria-label="Clear photo and detections">Clear</button>
+    </div>
+  </header>
+  <main role="main">
+    <div id="workspace">
+      <div id="imageContainer">
+        <img id="photo" alt="Uploaded family photo" />
+        <canvas id="canvas" aria-label="Detections overlay"></canvas>
+      </div>
+      <aside id="panel" aria-label="Face tagging and similarity">
+        <div class="row">
+          <strong>Tag Family Members</strong>
+        </div>
+        <div id="facesList" aria-live="polite"></div>
+        <div id="roles">
+          <label>Baby: <select id="babySel"></select></label>
+          <label>Mom: <select id="momSel"></select></label>
+          <label>Dad: <select id="dadSel"></select></label>
+        </div>
+        <button id="calcBtn" aria-label="Calculate similarity">Calculate Similarity</button>
+        <div id="result" aria-live="polite"></div>
+      </aside>
+    </div>
+  </main>
 
   <script>
     const imageUpload = document.getElementById('imageUpload');
+    const clearBtn = document.getElementById('clearBtn');
     const canvas = document.getElementById('canvas');
+    const photo = document.getElementById('photo');
+    const facesList = document.getElementById('facesList');
     const resultDiv = document.getElementById('result');
+    const babySel = document.getElementById('babySel');
+    const momSel = document.getElementById('momSel');
+    const dadSel = document.getElementById('dadSel');
+    const calcBtn = document.getElementById('calcBtn');
     const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+
+    let faces = []; // { descriptor, box, canvas }
 
     Promise.all([
       faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
-    ]).then(start).catch(err => {
+    ]).then(() => {
+      resultDiv.innerText = 'Models loaded. Upload a family photo.';
+      start();
+    }).catch(err => {
       console.error(err);
       resultDiv.innerText = 'Failed to load face models. Please check your internet connection.';
     });
@@ -34,49 +98,120 @@
           resultDiv.innerText = 'Please choose an image file.';
           return;
         }
+        resultDiv.innerText = 'Detecting faces...';
+        faces = [];
 
-        const image = await faceapi.bufferToImage(imageUpload.files[0]);
-        const displaySize = { width: image.width, height: image.height };
-        canvas.width = image.width;
-        canvas.height = image.height;
-        document.body.append(image);
+        const img = await faceapi.bufferToImage(imageUpload.files[0]);
+        photo.src = img.src;
+        await photo.decode();
+        const displaySize = { width: photo.naturalWidth, height: photo.naturalHeight };
+        canvas.width = displaySize.width;
+        canvas.height = displaySize.height;
+        const ctx = canvas.getContext('2d');
 
         const detections = await faceapi
-          .detectAllFaces(image, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+          .detectAllFaces(photo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
           .withFaceLandmarks()
           .withFaceDescriptors();
-        faceapi.matchDimensions(canvas, displaySize);
-        const resizedDetections = faceapi.resizeResults(detections, displaySize);
-        faceapi.draw.drawDetections(canvas, resizedDetections);
 
-        if (detections.length < 3) {
-          resultDiv.innerText = "Please ensure baby, mom, and dad are visible.";
+        if (!detections.length) {
+          resultDiv.innerText = 'No faces detected. Try a clearer photo.';
           return;
         }
 
-        // Simple demo: first face = baby, second = mom, third = dad
-        const baby = detections[0].descriptor;
-        const mom = detections[1].descriptor;
-        const dad = detections[2].descriptor;
+        // Draw boxes with index
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+        faceapi.matchDimensions(canvas, displaySize);
+        const resized = faceapi.resizeResults(detections, displaySize);
+        resized.forEach((det, idx) => {
+          const { x, y, width, height } = det.detection.box;
+          ctx.strokeStyle = '#4cc9f0';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, width, height);
+          ctx.fillStyle = 'rgba(76,201,240,0.8)';
+          ctx.font = '14px system-ui';
+          ctx.fillText(`#${idx+1}`, x + 4, y + 16);
+        });
 
-        function cosineSim(a, b) {
-          let dot = 0, normA = 0, normB = 0;
-          for (let i = 0; i < a.length; i++) {
-            dot += a[i] * b[i];
-            normA += a[i] * a[i];
-            normB += b[i] * b[i];
-          }
-          return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-        }
+        // Extract face thumbnails
+        const boxes = resized.map(r => r.detection.box);
+        const extracted = await faceapi.extractFaces(photo, boxes);
+        faces = resized.map((r, i) => ({ descriptor: r.descriptor, box: r.detection.box, canvas: extracted[i] }));
 
-        const simMom = cosineSim(baby, mom);
-        const simDad = cosineSim(baby, dad);
+        populateFacesUI();
+        resultDiv.innerText = 'Select Baby, Mom, and Dad, then Calculate.';
+      });
 
-        resultDiv.innerText = simMom > simDad
-          ? `Baby looks more like Mom (Similarity: ${simMom.toFixed(2)})`
-          : `Baby looks more like Dad (Similarity: ${simDad.toFixed(2)})`;
+      clearBtn.addEventListener('click', () => {
+        photo.src = '';
+        faces = [];
+        facesList.innerHTML = '';
+        [babySel, momSel, dadSel].forEach(sel => { sel.innerHTML = ''; });
+        resultDiv.innerText = '';
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0,0,canvas.width, canvas.height);
       });
     }
+
+    function populateFacesUI() {
+      facesList.innerHTML = '';
+      [babySel, momSel, dadSel].forEach(sel => { sel.innerHTML = ''; });
+      faces.forEach((f, i) => {
+        const item = document.createElement('div');
+        item.className = 'faceItem';
+        const thumb = document.createElement('div'); thumb.className = 'thumb';
+        if (f.canvas) thumb.appendChild(f.canvas);
+        const meta = document.createElement('div');
+        meta.innerHTML = `<div class="row"><strong>Face #${i+1}</strong></div><div class="meta">Use selectors below to tag roles.</div>`;
+        item.appendChild(thumb); item.appendChild(meta);
+        facesList.appendChild(item);
+
+        const opt = new Option(`Face #${i+1}`, String(i));
+        babySel.add(opt.cloneNode(true));
+        momSel.add(opt.cloneNode(true));
+        dadSel.add(opt.cloneNode(true));
+      });
+
+      // Preselect first three faces if available
+      if (faces.length >= 3) {
+        babySel.value = '0'; momSel.value = '1'; dadSel.value = '2';
+      }
+    }
+
+    function cosineSim(a, b) {
+      let dot = 0, normA = 0, normB = 0;
+      for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+      }
+      return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    calcBtn.addEventListener('click', () => {
+      if (!faces.length) { resultDiv.innerText = 'Upload a photo first.'; return; }
+      const bi = parseInt(babySel.value);
+      const mi = parseInt(momSel.value);
+      const di = parseInt(dadSel.value);
+      if (!Number.isInteger(bi) || !Number.isInteger(mi) || !Number.isInteger(di)) {
+        resultDiv.innerText = 'Select Baby, Mom, and Dad.';
+        return;
+      }
+      if (new Set([bi, mi, di]).size < 3) {
+        resultDiv.innerText = 'Baby, Mom, and Dad must be different faces.';
+        return;
+      }
+      const baby = faces[bi].descriptor;
+      const mom = faces[mi].descriptor;
+      const dad = faces[di].descriptor;
+      const simMom = cosineSim(baby, mom);
+      const simDad = cosineSim(baby, dad);
+      const pctMom = Math.round(Math.max(0, Math.min(1, simMom)) * 10000) / 100; // 2 decimals
+      const pctDad = Math.round(Math.max(0, Math.min(1, simDad)) * 10000) / 100;
+      const more = simMom > simDad ? 'Mom' : 'Dad';
+      const pct = simMom > simDad ? pctMom : pctDad;
+      resultDiv.innerText = `Baby looks more like ${more} (Similarity: ${pct}%) — Mom: ${pctMom}%, Dad: ${pctDad}%`;
+    });
   </script>
 </body>
 </html>
