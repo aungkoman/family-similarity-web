@@ -119,7 +119,9 @@
         const img = await faceapi.bufferToImage(imageUpload.files[0]);
         photo.src = img.src;
         await photo.decode();
-        const displaySize = { width: photo.naturalWidth, height: photo.naturalHeight };
+        // Ensure layout has applied before measuring client size
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const displaySize = { width: photo.clientWidth, height: photo.clientHeight };
         canvas.width = displaySize.width;
         canvas.height = displaySize.height;
         const ctx = canvas.getContext('2d');
@@ -148,10 +150,39 @@
           ctx.fillText(`#${idx+1}`, x + 4, y + 16);
         });
 
-        // Extract per-face thumbnails for UI
-        const boxes = resized.map(r => r.detection.box);
-        const extracted = await faceapi.extractFaces(photo, boxes);
-        faces = resized.map((r, i) => ({ descriptor: r.descriptor, box: r.detection.box, canvas: extracted[i] }));
+        // Extract per-face thumbnails for UI (padded to show full face)
+        const natW = photo.naturalWidth || photo.width;
+        const natH = photo.naturalHeight || photo.height;
+        const padXRatio = 0.2; // add horizontal margin around detection
+        const padYRatio = 0.3; // add vertical margin to include hair/chin
+        const thumbSize = 112; // render high-res thumbnails, downscaled in CSS
+
+        const extracted = detections.map(det => {
+          const b = det.detection.box; // detection in natural image coordinates
+          const padX = b.width * padXRatio;
+          const padY = b.height * padYRatio;
+          // initial padded rectangle
+          let sx = Math.max(0, Math.floor(b.x - padX));
+          let sy = Math.max(0, Math.floor(b.y - padY));
+          let sWidth = Math.min(natW - sx, Math.floor(b.width + 2 * padX));
+          let sHeight = Math.min(natH - sy, Math.floor(b.height + 2 * padY));
+          // make square region centered on face for consistent thumbnails
+          const side = Math.max(sWidth, sHeight);
+          sx = Math.max(0, Math.floor((b.x + b.width / 2) - side / 2));
+          sy = Math.max(0, Math.floor((b.y + b.height / 2) - side / 2));
+          sWidth = Math.min(natW - sx, side);
+          sHeight = Math.min(natH - sy, side);
+
+          const t = document.createElement('canvas');
+          t.width = thumbSize;
+          t.height = thumbSize;
+          const tctx = t.getContext('2d');
+          tctx.imageSmoothingEnabled = true;
+          tctx.imageSmoothingQuality = 'high';
+          tctx.drawImage(photo, sx, sy, sWidth, sHeight, 0, 0, thumbSize, thumbSize);
+          return t;
+        });
+        faces = detections.map((r, i) => ({ descriptor: r.descriptor, box: r.detection.box, canvas: extracted[i] }));
         rolesMap = { baby: null, mom: null, dad: null };
         if (faces.length >= 3) rolesMap = { baby: 0, mom: 1, dad: 2 };
 
