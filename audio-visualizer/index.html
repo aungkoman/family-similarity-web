@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Real-Time Audio Visualizer</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --fg: #e6e6e6;
+      --accent: #4cc9f0;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+    header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #1e293b;
+    }
+    header h1 { font-size: 18px; margin: 0 8px 0 0; }
+    .control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .control label { font-size: 13px; }
+    .control select, .control input[type="color"], .control input[type="range"], .control input[type="file"], .control button {
+      background: #0f172a;
+      color: var(--fg);
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    .control input[type="range"] { width: 160px; }
+    .status { margin-left: auto; font-size: 12px; }
+    main { position: relative; }
+    #canvas2d, #webgl { width: 100%; height: 100%; display: block; }
+    #webgl { position: absolute; inset: 0; }
+    #canvas2d { position: absolute; inset: 0; }
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-top: 1px solid #1e293b;
+      font-size: 12px;
+    }
+    .fps { color: #94a3b8; }
+    /* Responsive */
+    @media (max-width: 640px) {
+      header { grid-template-columns: 1fr; }
+      .control { width: 100%; }
+    }
+  </style>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="dns-prefetch" href="https://unpkg.com" />
+</head>
+<body>
+  <header role="banner">
+    <h1 id="app-title">Real-Time Audio Visualizer</h1>
+    <div class="control" role="group" aria-label="Audio Source">
+      <label for="source">Source</label>
+      <select id="source" aria-labelledby="app-title source" tabindex="0">
+        <option value="mic">Microphone</option>
+        <option value="file">Audio File</option>
+      </select>
+      <input id="fileInput" type="file" accept="audio/*" aria-label="Upload audio file" style="display:none" />
+      <button id="startBtn" aria-label="Start capture" tabindex="0">Start</button>
+      <button id="stopBtn" aria-label="Stop capture" tabindex="0" disabled>Stop</button>
+    </div>
+    <div class="control" role="group" aria-label="Visualization Type">
+      <label for="viz">Visualization</label>
+      <select id="viz" aria-labelledby="app-title viz" tabindex="0">
+        <option value="waveform">Waveform</option>
+        <option value="bars">Frequency Bars</option>
+        <option value="spectrogram">Spectrogram</option>
+        <option value="particles">Particles (WebGL)</option>
+      </select>
+    </div>
+    <div class="control" role="group" aria-label="Color Scheme">
+      <label for="colorPrimary">Primary</label>
+      <input id="colorPrimary" type="color" value="#4cc9f0" aria-label="Primary color" />
+      <label for="colorBg">Background</label>
+      <input id="colorBg" type="color" value="#0b0f14" aria-label="Background color" />
+    </div>
+    <div class="control" role="group" aria-label="Sensitivity and Scale">
+      <label for="sensitivity">Sensitivity</label>
+      <input id="sensitivity" type="range" min="0.5" max="4" step="0.1" value="1.0" aria-valuemin="0.5" aria-valuemax="4" aria-valuenow="1.0" />
+      <label for="scale">Scale</label>
+      <input id="scale" type="range" min="0.5" max="3" step="0.1" value="1.0" aria-valuemin="0.5" aria-valuemax="3" aria-valuenow="1.0" />
+    </div>
+    <div class="status" aria-live="polite" id="status">Idle</div>
+  </header>
+  <main role="main" aria-label="Visualization canvas">
+    <canvas id="canvas2d" aria-label="2D visualization canvas"></canvas>
+    <canvas id="webgl" aria-label="WebGL visualization canvas"></canvas>
+  </main>
+  <footer role="contentinfo">
+    <div>Keyboard: Tab to controls, Space/Enter to activate.</div>
+    <div class="fps" id="fps">FPS: 0</div>
+  </footer>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+    const state = {
+      audioContext: null,
+      analyser: null,
+      sourceNode: null,
+      dataTime: null,
+      dataFreq: null,
+      running: false,
+      sensitivity: 1.0,
+      scale: 1.0,
+      primary: '#4cc9f0',
+      bg: '#0b0f14',
+      mode: 'waveform',
+      fftSize: 2048,
+      lastFrameTime: performance.now(),
+      fpsSamples: [],
+    };
+
+    const el = {
+      canvas2d: document.getElementById('canvas2d'),
+      webgl: document.getElementById('webgl'),
+      source: document.getElementById('source'),
+      fileInput: document.getElementById('fileInput'),
+      viz: document.getElementById('viz'),
+      startBtn: document.getElementById('startBtn'),
+      stopBtn: document.getElementById('stopBtn'),
+      sensitivity: document.getElementById('sensitivity'),
+      scale: document.getElementById('scale'),
+      colorPrimary: document.getElementById('colorPrimary'),
+      colorBg: document.getElementById('colorBg'),
+      status: document.getElementById('status'),
+      fps: document.getElementById('fps'),
+    };
+
+    // Resize canvases responsive
+    function resize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight - document.querySelector('header').offsetHeight - document.querySelector('footer').offsetHeight;
+      el.canvas2d.width = w;
+      el.canvas2d.height = Math.max(200, h);
+      el.webgl.width = w;
+      el.webgl.height = Math.max(200, h);
+      if (three.renderer) {
+        three.renderer.setSize(w, Math.max(200, h));
+        three.camera.aspect = w / Math.max(200, h);
+        three.camera.updateProjectionMatrix();
+      }
+    }
+    window.addEventListener('resize', resize);
+
+    // Audio setup
+    async function ensureAudio() {
+      if (!state.audioContext) state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (!state.analyser) {
+        state.analyser = state.audioContext.createAnalyser();
+        state.analyser.fftSize = state.fftSize; // 2048 -> timeDomain 2048, freq 1024
+        state.analyser.smoothingTimeConstant = 0.8;
+        state.dataTime = new Uint8Array(state.analyser.fftSize);
+        state.dataFreq = new Uint8Array(state.analyser.frequencyBinCount);
+      }
+    }
+
+    async function startMic() {
+      try {
+        await ensureAudio();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const src = state.audioContext.createMediaStreamSource(stream);
+        src.connect(state.analyser);
+        state.sourceNode = src;
+        state.running = true;
+        el.status.textContent = 'Mic capture active';
+        el.stopBtn.disabled = false;
+        loop();
+      } catch (err) {
+        console.error(err);
+        el.status.textContent = 'Mic access denied or unavailable';
+        alert('Unable to access microphone. Please allow permissions or use an audio file.');
+      }
+    }
+
+    async function startFile(file) {
+      try {
+        await ensureAudio();
+        const url = URL.createObjectURL(file);
+        const audio = new Audio();
+        audio.src = url;
+        audio.crossOrigin = 'anonymous';
+        audio.loop = true;
+        await audio.play();
+        const src = state.audioContext.createMediaElementSource(audio);
+        src.connect(state.analyser);
+        state.analyser.connect(state.audioContext.destination);
+        state.sourceNode = src;
+        state.running = true;
+        el.status.textContent = 'File playback active';
+        el.stopBtn.disabled = false;
+        loop();
+      } catch (err) {
+        console.error(err);
+        el.status.textContent = 'Failed to play file';
+        alert('Could not play the selected audio file. Try another file.');
+      }
+    }
+
+    function stop() {
+      try {
+        if (state.sourceNode && state.sourceNode.mediaStream) {
+          const tracks = state.sourceNode.mediaStream.getTracks();
+          tracks.forEach(t => t.stop());
+        }
+        if (state.audioContext) {
+          // do not close context to allow restart quickly
+        }
+      } catch (e) { /* noop */ }
+      state.running = false;
+      el.stopBtn.disabled = true;
+      el.status.textContent = 'Idle';
+    }
+
+    // UI events
+    el.source.addEventListener('change', () => {
+      const useFile = el.source.value === 'file';
+      el.fileInput.style.display = useFile ? 'inline-block' : 'none';
+    });
+    el.startBtn.addEventListener('click', async () => {
+      if (el.source.value === 'mic') await startMic();
+      else el.fileInput.click();
+    });
+    el.fileInput.addEventListener('change', () => {
+      const f = el.fileInput.files?.[0];
+      if (f) startFile(f);
+    });
+    el.stopBtn.addEventListener('click', stop);
+    el.viz.addEventListener('change', () => { state.mode = el.viz.value; });
+    el.sensitivity.addEventListener('input', (e) => { state.sensitivity = parseFloat(e.target.value); });
+    el.scale.addEventListener('input', (e) => { state.scale = parseFloat(e.target.value); });
+    el.colorPrimary.addEventListener('input', (e) => { state.primary = e.target.value; document.documentElement.style.setProperty('--accent', state.primary); });
+    el.colorBg.addEventListener('input', (e) => { state.bg = e.target.value; document.documentElement.style.setProperty('--bg', state.bg); });
+
+    // 2D rendering
+    const ctx2d = el.canvas2d.getContext('2d');
+    function renderWaveform() {
+      state.analyser.getByteTimeDomainData(state.dataTime);
+      const w = el.canvas2d.width, h = el.canvas2d.height;
+      ctx2d.clearRect(0, 0, w, h);
+      ctx2d.strokeStyle = state.primary;
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      const slice = w / state.dataTime.length;
+      for (let i = 0; i < state.dataTime.length; i++) {
+        const v = (state.dataTime[i] - 128) / 128;
+        const y = h / 2 + v * (h / 2) * 0.9 * state.scale;
+        const x = i * slice;
+        i === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y);
+      }
+      ctx2d.stroke();
+    }
+
+    function renderBars() {
+      state.analyser.getByteFrequencyData(state.dataFreq);
+      const w = el.canvas2d.width, h = el.canvas2d.height;
+      ctx2d.clearRect(0, 0, w, h);
+      const barCount = Math.min(128, state.dataFreq.length);
+      const barW = w / barCount;
+      for (let i = 0; i < barCount; i++) {
+        const v = state.dataFreq[i] / 255 * state.sensitivity;
+        const barH = Math.min(h, v * h * 0.95 * state.scale);
+        const x = i * barW;
+        ctx2d.fillStyle = `hsl(${(i / barCount) * 360}, 80%, 60%)`;
+        ctx2d.fillRect(x, h - barH, barW * 0.9, barH);
+      }
+    }
+
+    // Spectrogram (waterfall)
+    const specImage = ctx2d.createImageData(1, 1);
+    function renderSpectrogram() {
+      state.analyser.getByteFrequencyData(state.dataFreq);
+      const w = el.canvas2d.width, h = el.canvas2d.height;
+      const imageData = ctx2d.getImageData(1, 0, w - 1, h);
+      ctx2d.putImageData(imageData, 0, 0); // shift left
+      for (let y = 0; y < h; y++) {
+        const idx = Math.floor((y / h) * state.dataFreq.length);
+        const v = state.dataFreq[idx] / 255 * state.sensitivity;
+        const c = colorMap(v);
+        specImage.data[0] = c[0];
+        specImage.data[1] = c[1];
+        specImage.data[2] = c[2];
+        specImage.data[3] = 255;
+        ctx2d.putImageData(specImage, w - 1, h - 1 - y);
+      }
+    }
+    function colorMap(v) {
+      // Turbo-like colormap
+      const r = Math.floor(255 * Math.min(1, Math.max(0, 1.5 * v)));
+      const g = Math.floor(255 * Math.min(1, Math.max(0, 1.5 * (1 - Math.abs(v - 0.5)))));
+      const b = Math.floor(255 * Math.min(1, Math.max(0, 1.5 * (1 - v))));
+      return [r, g, b];
+    }
+
+    // WebGL particles via Three.js
+    const three = {
+      renderer: null,
+      scene: null,
+      camera: null,
+      points: null,
+      geometry: null,
+    };
+
+    function initThree() {
+      if (three.renderer) return;
+      three.renderer = new THREE.WebGLRenderer({ canvas: el.webgl, antialias: true, alpha: true });
+      three.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      three.scene = new THREE.Scene();
+      three.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+      three.camera.position.z = 80;
+
+      const count = 1024;
+      three.geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        positions[i * 3] = Math.cos(angle) * 30;
+        positions[i * 3 + 1] = Math.sin(angle) * 30;
+        positions[i * 3 + 2] = 0;
+      }
+      three.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const material = new THREE.PointsMaterial({ color: state.primary, size: 1.8, sizeAttenuation: true });
+      three.points = new THREE.Points(three.geometry, material);
+      three.scene.add(three.points);
+      resize();
+    }
+
+    function renderParticles() {
+      initThree();
+      state.analyser.getByteFrequencyData(state.dataFreq);
+      const positions = three.geometry.attributes.position.array;
+      const N = Math.min(state.dataFreq.length, positions.length / 3);
+      for (let i = 0; i < N; i++) {
+        const v = state.dataFreq[i] / 255 * state.sensitivity;
+        const idx = i * 3;
+        const dir = Math.hypot(positions[idx], positions[idx + 1]);
+        const scale = 1 + v * 1.2 * state.scale;
+        const normX = positions[idx] / dir;
+        const normY = positions[idx + 1] / dir;
+        positions[idx] = normX * 30 * scale;
+        positions[idx + 1] = normY * 30 * scale;
+      }
+      three.geometry.attributes.position.needsUpdate = true;
+      three.points.material.color.set(state.primary);
+      three.renderer.setClearColor(0x000000, 0); // transparent over bg
+      three.renderer.render(three.scene, three.camera);
+    }
+
+    // Animation loop
+    function loop(now = performance.now()) {
+      if (!state.running) return;
+      const dt = now - state.lastFrameTime;
+      state.lastFrameTime = now;
+      const fps = 1000 / Math.max(1, dt);
+      state.fpsSamples.push(fps);
+      if (state.fpsSamples.length > 20) state.fpsSamples.shift();
+      const avgFps = Math.round(state.fpsSamples.reduce((a,b)=>a+b,0)/state.fpsSamples.length);
+      el.fps.textContent = `FPS: ${avgFps}`;
+
+      // Clear 2D canvas background
+      ctx2d.fillStyle = state.bg;
+      ctx2d.fillRect(0, 0, el.canvas2d.width, el.canvas2d.height);
+
+      switch (state.mode) {
+        case 'waveform': renderWaveform(); break;
+        case 'bars': renderBars(); break;
+        case 'spectrogram': renderSpectrogram(); break;
+        case 'particles': renderParticles(); break;
+      }
+      requestAnimationFrame(loop);
+    }
+
+    // Accessibility keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === ' ') { e.preventDefault(); if (!state.running) el.startBtn.click(); else el.stopBtn.click(); }
+      if (e.key.toLowerCase() === 'w') el.viz.value = 'waveform', state.mode = 'waveform';
+      if (e.key.toLowerCase() === 'b') el.viz.value = 'bars', state.mode = 'bars';
+      if (e.key.toLowerCase() === 's') el.viz.value = 'spectrogram', state.mode = 'spectrogram';
+      if (e.key.toLowerCase() === 'p') el.viz.value = 'particles', state.mode = 'particles';
+    });
+
+    // Initialize
+    resize();
+  </script>
+</body>
+</html>
