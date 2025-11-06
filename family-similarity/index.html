@@ -32,7 +32,6 @@
     .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
     .row { display: flex; gap: 6px; align-items: center; }
     .meta { font-size: 12px; color: var(--muted); }
-    #roles { display: grid; gap: 8px; margin-top: 8px; }
     #result { margin-top: 10px; font-weight: 600; }
   </style>
 </head>
@@ -55,11 +54,6 @@
           <strong>Tag Family Members</strong>
         </div>
         <div id="facesList" aria-live="polite"></div>
-        <div id="roles">
-          <label>Baby: <select id="babySel"></select></label>
-          <label>Mom: <select id="momSel"></select></label>
-          <label>Dad: <select id="dadSel"></select></label>
-        </div>
         <button id="calcBtn" aria-label="Calculate similarity">Calculate Similarity</button>
         <div id="result" aria-live="polite"></div>
       </aside>
@@ -73,13 +67,11 @@
     const photo = document.getElementById('photo');
     const facesList = document.getElementById('facesList');
     const resultDiv = document.getElementById('result');
-    const babySel = document.getElementById('babySel');
-    const momSel = document.getElementById('momSel');
-    const dadSel = document.getElementById('dadSel');
     const calcBtn = document.getElementById('calcBtn');
     const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
 
     let faces = []; // { descriptor, box, canvas }
+    let rolesMap = { baby: null, mom: null, dad: null }; // assigned roles by face index
 
     Promise.all([
       faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
@@ -138,16 +130,17 @@
         const boxes = resized.map(r => r.detection.box);
         const extracted = await faceapi.extractFaces(photo, boxes);
         faces = resized.map((r, i) => ({ descriptor: r.descriptor, box: r.detection.box, canvas: extracted[i] }));
+        rolesMap = { baby: null, mom: null, dad: null };
+        if (faces.length >= 3) rolesMap = { baby: 0, mom: 1, dad: 2 };
 
         populateFacesUI();
-        resultDiv.innerText = 'Select Baby, Mom, and Dad, then Calculate.';
+        resultDiv.innerText = 'Assign roles using dropdowns, then Calculate.';
       });
 
       clearBtn.addEventListener('click', () => {
         photo.src = '';
         faces = [];
         facesList.innerHTML = '';
-        [babySel, momSel, dadSel].forEach(sel => { sel.innerHTML = ''; });
         resultDiv.innerText = '';
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0,0,canvas.width, canvas.height);
@@ -156,7 +149,6 @@
 
     function populateFacesUI() {
       facesList.innerHTML = '';
-      [babySel, momSel, dadSel].forEach(sel => { sel.innerHTML = ''; });
       faces.forEach((f, i) => {
         const item = document.createElement('div');
         item.className = 'faceItem';
@@ -168,20 +160,47 @@
           thumb.appendChild(imgFace);
         }
         const meta = document.createElement('div');
-        meta.innerHTML = `<div class="row"><strong>Face #${i+1}</strong></div><div class="meta">Use selectors below to tag roles.</div>`;
+        meta.innerHTML = `<div class="row"><strong>Face #${i+1}</strong>
+          <select class="roleSel" aria-label="Assign role">
+            <option value="none">Unassigned</option>
+            <option value="baby">Baby</option>
+            <option value="mom">Mom</option>
+            <option value="dad">Dad</option>
+          </select>
+        </div>
+        <div class="meta">Assign role using this dropdown, then Calculate.</div>`;
         item.appendChild(thumb); item.appendChild(meta);
         facesList.appendChild(item);
 
-        const opt = new Option(`Face #${i+1}`, String(i));
-        babySel.add(opt.cloneNode(true));
-        momSel.add(opt.cloneNode(true));
-        dadSel.add(opt.cloneNode(true));
+        const roleSel = meta.querySelector('.roleSel');
+        if (rolesMap.baby === i) roleSel.value = 'baby';
+        else if (rolesMap.mom === i) roleSel.value = 'mom';
+        else if (rolesMap.dad === i) roleSel.value = 'dad';
+        else roleSel.value = 'none';
+        roleSel.addEventListener('change', () => assignRole(roleSel.value, i));
       });
+    }
 
-      // Preselect first three faces if available
-      if (faces.length >= 3) {
-        babySel.value = '0'; momSel.value = '1'; dadSel.value = '2';
+    function assignRole(role, index) {
+      // clear roles currently assigned to this face index
+      for (const r of ['baby','mom','dad']) {
+        if (rolesMap[r] === index) rolesMap[r] = null;
       }
+      if (role !== 'none') {
+        // if another face holds the role, overwrite
+        for (const r of ['baby','mom','dad']) {
+          if (r === role) continue;
+        }
+        rolesMap[role] = index;
+      }
+      // ensure uniqueness across roles
+      const seen = new Set();
+      for (const r of ['baby','mom','dad']) {
+        const v = rolesMap[r];
+        if (v === null) continue;
+        if (seen.has(v)) rolesMap[r] = null; else seen.add(v);
+      }
+      populateFacesUI();
     }
 
     function cosineSim(a, b) {
@@ -196,11 +215,9 @@
 
     calcBtn.addEventListener('click', () => {
       if (!faces.length) { resultDiv.innerText = 'Upload a photo first.'; return; }
-      const bi = parseInt(babySel.value);
-      const mi = parseInt(momSel.value);
-      const di = parseInt(dadSel.value);
-      if (!Number.isInteger(bi) || !Number.isInteger(mi) || !Number.isInteger(di)) {
-        resultDiv.innerText = 'Select Baby, Mom, and Dad.';
+      const bi = rolesMap.baby, mi = rolesMap.mom, di = rolesMap.dad;
+      if (bi === null || mi === null || di === null) {
+        resultDiv.innerText = 'Assign Baby, Mom, and Dad using the dropdowns.';
         return;
       }
       if (new Set([bi, mi, di]).size < 3) {
