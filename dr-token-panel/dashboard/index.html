@@ -7,114 +7,309 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles for the Inter font */
+        /* Custom styles for the Inter font and overall layout */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc; /* Very light blue-gray background */
+            background-color: #f8fafc;
         }
         .stat-card {
             transition: all 0.2s ease-in-out;
         }
         .stat-card:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+        }
+        /* Style for active navigation link */
+        .nav-link.active {
+            background-color: #e0f7fa; /* Light cyan */
+            color: #0891b2; /* Cyan 600 */
+            font-weight: 600;
+            border-left: 4px solid #0891b2;
+        }
+        .nav-link {
+            transition: all 0.1s ease-in-out;
+            padding-left: 1.5rem; /* Match border width for alignment */
         }
     </style>
 </head>
 <body>
-    <!-- Main Application Container -->
-    <div class="min-h-screen flex flex-col">
+    <!-- Main Application Wrapper -->
+    <div class="min-h-screen flex flex-col md:flex-row">
 
-        <!-- Header/Navigation Bar -->
-        <header class="bg-white shadow-md">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-cyan-600 flex items-center">
-                    <!-- Clinic Icon -->
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                        <path d="M12 2v20"></path><path d="M18 6l-6 6-6-6"></path><path d="M18 18l-6-6-6 6"></path>
-                    </svg>
-                    OPD Dashboard
-                </h1>
-                <div class="flex items-center space-x-4">
-                    <span class="text-gray-600 text-sm hidden sm:inline">Welcome, Clinic Staff</span>
-                    <button class="bg-red-500 hover:bg-red-600 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition duration-150 shadow-md"
-                            onclick="window.location.replace('index.html')">
-                        Log Out
-                    </button>
-                </div>
+        <!-- Sidebar Navigation -->
+        <aside class="w-full md:w-64 bg-white shadow-lg md:shadow-xl flex-shrink-0">
+            <div class="p-6 border-b">
+                <h1 class="text-xl font-extrabold text-cyan-700">OPD Manager</h1>
+                <p class="text-xs text-gray-500">Queue Management</p>
             </div>
-        </header>
+
+            <nav class="p-4 space-y-2">
+                <!-- Navigation Links -->
+                <a href="#" data-view="dashboard" class="nav-link active flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                    Dashboard
+                </a>
+                <a href="#" data-view="live-management" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H7M12 2a5 5 0 0 0-5 5v12a5 5 0 0 0 5 5h0a5 5 0 0 0 5-5V7a5 5 0 0 0-5-5z"/></svg>
+                    Live Queue
+                </a>
+                <a href="#" data-view="schedule-list" class="nav-link flex items-center p-3 rounded-lg text-gray-700 hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                    Schedule List
+                </a>
+            </nav>
+        </aside>
 
         <!-- Main Content Area -->
-        <main class="flex-grow p-4 sm:p-6 lg:p-8">
-            <div class="max-w-7xl mx-auto">
-                <h2 class="text-3xl font-semibold text-gray-800 mb-6">Today's Summary</h2>
+        <div class="flex-grow flex flex-col">
+            <!-- Top Bar for User Info and Logout (Responsive on small screens) -->
+            <header class="bg-white p-4 shadow-sm flex justify-end items-center md:hidden border-b">
+                <span class="text-gray-600 text-sm mr-4">Welcome, Staff</span>
+                <button class="bg-red-500 hover:bg-red-600 text-white text-sm font-medium py-1.5 px-3 rounded-lg transition duration-150 shadow-md"
+                        onclick="window.location.replace('index.html')">
+                    Log Out
+                </button>
+            </header>
 
-                <!-- Stat Cards Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                    <!-- Card 1: Number of Doctors -->
-                    <div class="stat-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <div class="flex items-center">
-                            <!-- Icon: Doctor/Stethoscope -->
-                            <div class="p-3 bg-blue-100 rounded-full text-blue-600 mr-4">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 20l4-16"/><path d="M21 21l-4.35-4.35a2 2 0 0 0-2.83 0L12 19l-1.82-1.82a2 2 0 0 0-2.83 0L3 21"/><path d="M16 12l-4-4"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-gray-500">Active Doctors</p>
-                                <p class="text-3xl font-bold text-gray-900">12</p>
-                            </div>
-                        </div>
-                        <p class="text-xs text-green-500 mt-2">+2 since yesterday</p>
+            <!-- Main Content Container -->
+            <main class="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto">
+                <div class="max-w-7xl mx-auto">
+                    
+                    <!-- Top Bar for Desktop/Wide Screens (Desktop only) -->
+                    <div class="hidden md:flex justify-end items-center mb-6">
+                        <span class="text-gray-600 mr-4">Welcome, Clinic Staff</span>
+                        <button class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition duration-150 shadow-md"
+                                onclick="window.location.replace('index.html')">
+                            Log Out
+                        </button>
                     </div>
 
-                    <!-- Card 2: Current Patients in Queue -->
-                    <div class="stat-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <div class="flex items-center">
-                            <!-- Icon: Patient/User Group -->
-                            <div class="p-3 bg-yellow-100 rounded-full text-yellow-600 mr-4">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <!-- --- 1. DASHBOARD VIEW (Default) --- -->
+                    <div id="dashboard-view">
+                        <h2 class="text-3xl font-semibold text-gray-800 mb-6">Today's Summary</h2>
+                        <!-- Stat Cards Grid (Existing content) -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                            <!-- Card 1: Number of Doctors -->
+                            <div class="stat-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-blue-100 rounded-full text-blue-600 mr-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 20l4-16"/><path d="M21 21l-4.35-4.35a2 2 0 0 0-2.83 0L12 19l-1.82-1.82a2 2 0 0 0-2.83 0L3 21"/><path d="M16 12l-4-4"/></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500">Active Doctors</p>
+                                        <p class="text-3xl font-bold text-gray-900">12</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-green-500 mt-2">+2 since yesterday</p>
                             </div>
-                            <div>
-                                <p class="text-sm font-medium text-gray-500">Patients in Queue</p>
-                                <p class="text-3xl font-bold text-gray-900">45</p>
+
+                            <!-- Card 2: Current Patients in Queue -->
+                            <div class="stat-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-yellow-100 rounded-full text-yellow-600 mr-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500">Patients in Queue</p>
+                                        <p class="text-3xl font-bold text-gray-900">45</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-red-500 mt-2">3 waiting > 30 mins</p>
+                            </div>
+
+                            <!-- Card 3: Today's Total Bookings -->
+                            <div class="stat-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-cyan-100 rounded-full text-cyan-600 mr-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M12 13v4"/><path d="M14 15h-4"/></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-500">Today's Total Bookings</p>
+                                        <p class="text-3xl font-bold text-gray-900">187</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-green-500 mt-2">Target reached: 95%</p>
                             </div>
                         </div>
-                        <p class="text-xs text-red-500 mt-2">3 waiting > 30 mins</p>
-                    </div>
 
-                    <!-- Card 3: Today's Total Bookings -->
-                    <div class="stat-card bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                        <div class="flex items-center">
-                            <!-- Icon: Calendar/Booking -->
-                            <div class="p-3 bg-cyan-100 rounded-full text-cyan-600 mr-4">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M12 13v4"/><path d="M14 15h-4"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-gray-500">Today's Total Bookings</p>
-                                <p class="text-3xl font-bold text-gray-900">187</p>
+                        <!-- Placeholder for Queue List/Main Content -->
+                        <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Quick View: Current Patients</h3>
+                            <div class="text-gray-500 italic p-4 border rounded-lg">
+                                Current patient data from the Live Management list would be shown here.
                             </div>
                         </div>
-                        <p class="text-xs text-green-500 mt-2">Target reached: 95%</p>
                     </div>
 
+                    <!-- --- 2. SCHEDULE LIST VIEW --- -->
+                    <div id="schedule-list-view" class="hidden">
+                        <h2 class="text-3xl font-semibold text-gray-800 mb-6">Full Clinic Schedule</h2>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200" id="schedule-table-body">
+                                    <!-- Schedule data inserted here by JS -->
+                                </tbody>
+                            </table>
+                            
+                            <!-- Detail Modal Placeholder -->
+                            <div id="schedule-detail-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                                <div class="bg-white rounded-xl shadow-3xl p-6 w-full max-w-xl">
+                                    <h3 class="text-2xl font-bold mb-4 text-cyan-700">Schedule Details</h3>
+                                    <p id="modal-content" class="text-gray-700">Details for the selected schedule would appear here (Patient list, Add/Remove/Update buttons).</p>
+                                    <button onclick="hideDetailModal()" class="mt-6 w-full py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition">Close</button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- --- 3. LIVE MANAGEMENT VIEW --- -->
+                    <div id="live-management-view" class="hidden">
+                        <h2 class="text-3xl font-semibold text-gray-800 mb-6">Live Queue Management (Today)</h2>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                            <ul class="divide-y divide-gray-200">
+                                <li class="py-4 flex justify-between items-center"><span class="font-medium text-gray-900">1. Dr. Aung Aung (General)</span> <span class="text-sm text-yellow-600 font-semibold">5 Patients Waiting</span></li>
+                                <li class="py-4 flex justify-between items-center"><span class="font-medium text-gray-900">2. Dr. Khin Thandar (Pediatrics)</span> <span class="text-sm text-green-600 font-semibold">2 Patients Waiting</span></li>
+                                <li class="py-4 flex justify-between items-center"><span class="font-medium text-gray-900">3. Dr. Kyaw Kyaw (Orthopedic)</span> <span class="text-sm text-gray-600">0 Patients Waiting (Available)</span></li>
+                                <li class="py-4 flex justify-between items-center text-gray-500 italic">... more live schedules ...</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
+            </main>
 
-                <!-- Placeholder for Queue List/Main Content -->
-                <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                    <h3 class="text-xl font-semibold text-gray-700 mb-4">OPD Live Queue List</h3>
-                    <div class="text-gray-500 italic p-4 border rounded-lg">
-                        This area would display the live patient queue and scheduling details.
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <!-- Footer -->
-        <footer class="p-4 bg-gray-50 text-center text-sm text-gray-500 border-t">
-            &copy; 2025 Clinic OPD Queue Management. All rights reserved.
-        </footer>
+            <!-- Footer (Moved inside the main flex content) -->
+            <footer class="p-4 bg-white text-center text-sm text-gray-500 border-t mt-auto">
+                &copy; 2025 Clinic OPD Queue Management. All rights reserved.
+            </footer>
+        </div>
     </div>
+
+    <!-- JavaScript for Navigation and Simulated Schedule Data -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const views = document.querySelectorAll('[id$="-view"]');
+            const scheduleTableBody = document.getElementById('schedule-table-body');
+            const detailModal = document.getElementById('schedule-detail-modal');
+            const modalContent = document.getElementById('modal-content');
+
+            // Sample data for Schedule List
+            const schedules = [
+                { id: 1, doctor: 'Dr. Aung Aung', time: 'Oct 23, 15:30 (Wed)', status: 'Active', patients: 3 },
+                { id: 2, doctor: 'Dr. Theingi', time: 'Oct 23, 16:00 (Wed)', status: 'Open', patients: 0 },
+                { id: 3, doctor: 'Dr. Nilar Win', time: 'Oct 24, 09:00 (Thu)', status: 'Booked', patients: 5 },
+                { id: 4, doctor: 'Dr. Aung Aung', time: 'Oct 24, 14:00 (Thu)', status: 'Cancelled', patients: 0 },
+            ];
+
+            // Function to render the schedule table
+            function renderScheduleTable() {
+                scheduleTableBody.innerHTML = ''; // Clear existing rows
+                schedules.forEach(schedule => {
+                    const row = scheduleTableBody.insertRow();
+                    row.className = 'hover:bg-gray-50';
+
+                    // Doctor Cell
+                    row.insertCell().innerHTML = `<span class="font-semibold">${schedule.doctor}</span>`;
+                    
+                    // Time Cell
+                    row.insertCell().textContent = schedule.time;
+
+                    // Status Cell
+                    let statusClass = '';
+                    if (schedule.status === 'Active') statusClass = 'text-green-600 bg-green-100';
+                    else if (schedule.status === 'Open') statusClass = 'text-blue-600 bg-blue-100';
+                    else if (schedule.status === 'Booked') statusClass = 'text-yellow-600 bg-yellow-100';
+                    else if (schedule.status === 'Cancelled') statusClass = 'text-red-600 bg-red-100';
+
+                    row.insertCell().innerHTML = `<span class="inline-flex px-2 text-xs font-semibold leading-5 rounded-full ${statusClass}">${schedule.status}</span>`;
+
+                    // Action Cell (View Details)
+                    const actionCell = row.insertCell();
+                    actionCell.className = 'px-6 py-4 whitespace-nowrap text-right text-sm font-medium';
+                    actionCell.innerHTML = `<button data-id="${schedule.id}" class="view-details-btn text-cyan-600 hover:text-cyan-900 transition duration-150">View Details (${schedule.patients} Pts)</button>`;
+                });
+            }
+
+            // Function to handle view switching
+            function switchView(viewId) {
+                // Hide all views
+                views.forEach(view => view.classList.add('hidden'));
+                
+                // Show the requested view
+                const targetView = document.getElementById(viewId);
+                if (targetView) {
+                    targetView.classList.remove('hidden');
+                }
+
+                // Update active link styling
+                navLinks.forEach(link => link.classList.remove('active'));
+                document.querySelector(`.nav-link[data-view="${viewId.replace('-view', '')}"]`).classList.add('active');
+
+                // If switching to schedule list, render the table
+                if (viewId === 'schedule-list-view') {
+                    renderScheduleTable();
+                }
+            }
+
+            // Function to show the detail modal (simulated Schedule Detail Page)
+            function showDetailModal(scheduleId) {
+                const schedule = schedules.find(s => s.id == scheduleId);
+                
+                modalContent.innerHTML = `
+                    <p class="mb-4 text-lg font-semibold">${schedule.doctor} - ${schedule.time}</p>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <p class="font-medium mb-2">Patients Booked: ${schedule.patients}</p>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                            <li>Patient A: Scheduled 15:30</li>
+                            <li>Patient B: Scheduled 15:45</li>
+                            <li>Patient C: Scheduled 16:00</li>
+                        </ul>
+                    </div>
+                    <div class="mt-4 flex space-x-3">
+                        <button class="flex-1 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Add Patient</button>
+                        <button class="flex-1 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">Update Booking</button>
+                        <button class="flex-1 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Remove Patient</button>
+                    </div>
+                `;
+                detailModal.classList.remove('hidden');
+            }
+
+            // Global function for close button
+            window.hideDetailModal = function() {
+                detailModal.classList.add('hidden');
+            }
+
+            // Event Listeners for Navigation
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const viewName = link.getAttribute('data-view');
+                    switchView(viewName + '-view');
+                });
+            });
+
+            // Event Listener for "View Details" buttons in the Schedule List
+            scheduleTableBody.addEventListener('click', (e) => {
+                if (e.target.classList.contains('view-details-btn')) {
+                    const scheduleId = e.target.getAttribute('data-id');
+                    showDetailModal(scheduleId);
+                }
+            });
+
+            // Initial load: Render schedule table and show dashboard view
+            switchView('dashboard-view');
+        });
+    </script>
 </body>
 </html>
