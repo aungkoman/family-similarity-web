@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>တိုက်ရိုက် လူနာကြည့်ရှုမှု အခြေအနေပြ ဘုတ်</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0F172A; /* Slate 900 */
+            color: #F8FAFC; /* Slate 50 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        .display-card {
+            background-color: #1E293B; /* Slate 800 */
+            border-radius: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 900px;
+            padding: 2rem;
+        }
+        .main-token {
+            background-color: #3B82F6; /* Blue 500 */
+            color: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-top: 1.5rem;
+        }
+        .token-text {
+            font-size: 8rem; /* Large font for visibility */
+            line-height: 1;
+        }
+        /* Status Colors */
+        .doctor-arrived { color: #10B981; /* Emerald 500 */ }
+        .doctor-departed { color: #F87171; /* Red 400 */ }
+    </style>
+</head>
+<body>
+
+    <div class="display-card text-center">
+        <!-- Clinic and Doctor Info -->
+        <h1 class="text-4xl font-extrabold mb-1">အောင်မင်္ဂလာ ဆေးခန်း</h1>
+        <p class="text-xl font-medium mb-4">ဆရာဝန်: ဒေါက်တာ အောင်ကျော်</p>
+
+        <!-- Doctor Status -->
+        <p class="text-lg font-semibold mb-6">ဆရာဝန် အခြေအနေ: <span id="doctor-status-display" class="font-extrabold"></span></p>
+
+        <hr class="border-gray-600 mb-6">
+
+        <!-- Current Patient Display -->
+        <div class="main-token">
+            <p class="text-2xl font-semibold opacity-80 mb-2">လက်ရှိ စစ်ဆေးနေသော တိုကင်</p>
+            <div id="current-token-display">
+                <p id="token-number" class="token-text font-black">--</p>
+                <p id="patient-name" class="text-3xl font-bold mt-2">လူနာအမည်မရှိသေးပါ</p>
+            </div>
+            
+            <!-- No Patient Waiting Message -->
+            <p id="no-patient-message" class="text-2xl font-bold hidden mt-6 p-4 bg-yellow-500 text-yellow-900 rounded-lg">
+                <span class="block">လူနာ စစ်ဆေးနေခြင်း မရှိသေးပါ</span>
+                <span class="block text-lg font-medium opacity-90 mt-1">(နောက်လူနာ စတင်ရန် စောင့်ဆိုင်းနေပါသည်)</span>
+            </p>
+        </div>
+
+        <p class="text-sm mt-6 text-gray-400">အခြေအနေအား 5 စက္ကန့်တိုင်း အလိုအလျောက် အဆင့်မြှင့်တင်နေပါသည်။</p>
+    </div>
+
+    <script type="module">
+        
+        // --- Data Definitions (မြန်မာလို) ---
+        const PATIENTS_KEY = 'clinic_patients_cache';
+        const DOCTOR_KEY = 'clinic_doctor_status';
+        
+        const PATIENT_STATUS = {
+            CONSULTING: 'စစ်ဆေးနေ',
+            ARRIVED: 'ရောက်ရှိပြီ', // Doctor status
+            DEPARTED: 'ထွက်ခွာပြီ' // Doctor status
+        };
+
+        // UI Elements
+        const doctorStatusDisplayEl = document.getElementById('doctor-status-display');
+        const tokenNumberEl = document.getElementById('token-number');
+        const patientNameEl = document.getElementById('patient-name');
+        const mainTokenDisplayEl = document.getElementById('current-token-display');
+        const noPatientMessageEl = document.getElementById('no-patient-message');
+
+        /**
+         * Loads the latest state from localStorage and updates the display board.
+         */
+        function loadDataAndRender() {
+            try {
+                // 1. Load Doctor Status
+                const doctorStatus = localStorage.getItem(DOCTOR_KEY);
+                renderDoctorStatus(doctorStatus);
+
+                // 2. Load Patient Data
+                const savedPatients = localStorage.getItem(PATIENTS_KEY);
+                let patientsCache = [];
+
+                if (savedPatients) {
+                    patientsCache = JSON.parse(savedPatients);
+                }
+
+                // 3. Find the current CONSULTING patient
+                const currentPatient = patientsCache.find(p => p.status === PATIENT_STATUS.CONSULTING);
+
+                renderPatientDisplay(currentPatient);
+
+            } catch (e) {
+                console.error("Error reading or parsing data from localStorage:", e);
+                renderErrorState();
+            }
+        }
+
+        /**
+         * Updates the Doctor status display.
+         */
+        function renderDoctorStatus(status) {
+            doctorStatusDisplayEl.textContent = status || PATIENT_STATUS.DEPARTED;
+            doctorStatusDisplayEl.classList.remove('doctor-arrived', 'doctor-departed');
+
+            if (status === PATIENT_STATUS.ARRIVED) {
+                doctorStatusDisplayEl.classList.add('doctor-arrived');
+            } else {
+                doctorStatusDisplayEl.classList.add('doctor-departed');
+            }
+        }
+
+        /**
+         * Updates the main token and patient name display.
+         */
+        function renderPatientDisplay(patient) {
+            if (patient) {
+                // Show current patient details
+                mainTokenDisplayEl.classList.remove('hidden');
+                noPatientMessageEl.classList.add('hidden');
+                
+                tokenNumberEl.textContent = `#${patient.token}`;
+                patientNameEl.textContent = patient.name || 'အမည်မသိ လူနာ';
+
+            } else {
+                // Show no patient waiting message
+                mainTokenDisplayEl.classList.add('hidden');
+                noPatientMessageEl.classList.remove('hidden');
+            }
+        }
+        
+        /**
+         * Displays a general error message if loading fails.
+         */
+        function renderErrorState() {
+             mainTokenDisplayEl.classList.add('hidden');
+             noPatientMessageEl.classList.remove('hidden');
+             noPatientMessageEl.textContent = "ဒေတာတင်ရာတွင် အမှားဖြစ်ခဲ့ပါသည်";
+             noPatientMessageEl.classList.remove('bg-yellow-500');
+             noPatientMessageEl.classList.add('bg-red-500', 'text-white');
+        }
+
+
+        // --- Initialization ---
+
+        // 1. Initial Load
+        loadDataAndRender();
+
+        // 2. Set up the 5-second refresh interval
+        const refreshInterval = 5000; // 5000 milliseconds = 5 seconds
+        setInterval(loadDataAndRender, refreshInterval);
+
+        console.log(`Live status display refreshing every ${refreshInterval / 1000} seconds.`);
+
+    </script>
+
+</body>
+</html>
