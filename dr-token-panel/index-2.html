@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Clinic Management Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #1D4ED8; /* Blue 700 */
+            --color-success: #10B981; /* Emerald 500 */
+            --color-warning: #F59E0B; /* Amber 500 */
+            --color-danger: #EF4444; /* Red 500 */
+            --color-info: #6366F1; /* Violet 500 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+            color: #1f2937;
+        }
+        /* Custom styles for clear visual status */
+        .status-card {
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            @apply shadow-md hover:shadow-xl;
+        }
+
+        .status-waiting { background-color: var(--color-warning); @apply text-amber-900; }
+        .status-consulting { background-color: var(--color-info); @apply text-violet-50; }
+        .status-finished { background-color: var(--color-success); @apply text-emerald-900; }
+        .status-noshow { background-color: var(--color-danger); @apply text-red-50; }
+        .status-default { @apply bg-gray-100 text-gray-500; }
+
+        .doctor-status-text-ARRIVED { @apply text-emerald-600; }
+        .doctor-status-text-DEPARTED { @apply text-red-600; }
+        .token-clickable:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="min-h-screen p-4 md:p-6">
+        <!-- Header -->
+        <header class="mb-6 pb-4 border-b border-gray-200">
+            <h1 class="text-3xl font-bold text-gray-800">Clinic Live Panel</h1>
+            <p class="text-gray-500">Manage doctor status and patient flow in real-time.</p>
+        </header>
+
+        <!-- Doctor Management Panel -->
+        <div id="doctor-panel" class="bg-white p-4 rounded-xl shadow-lg mb-8">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <h2 class="text-xl font-semibold mb-2 sm:mb-0">Doctor Status:
+                    <span id="doctor-status-display" class="font-bold ml-2"></span>
+                </h2>
+                <button id="doctor-toggle-btn"
+                    class="w-full sm:w-auto px-6 py-3 text-white font-medium rounded-lg shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02] active:scale-95 text-lg"
+                    aria-label="Toggle Doctor Status">
+                    Loading...
+                </button>
+            </div>
+        </div>
+
+        <!-- Patient Token Board -->
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Patient Token Board (1-50)</h2>
+
+        <div id="token-board"
+             class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <!-- Token cards will be injected here -->
+            <p class="text-center col-span-full py-10 text-gray-400" id="loading-message">Loading patient data...</p>
+        </div>
+
+        <!-- Custom Modal/Notification Area (For alerts/prompts) -->
+        <div id="modal-container" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full">
+                <h3 id="modal-title" class="text-2xl font-bold mb-4">Update Token Status</h3>
+                
+                <!-- Patient Details Block -->
+                <div class="border p-4 rounded-lg bg-gray-50 mb-6">
+                    <p class="text-sm text-gray-500 mb-1">Token Number:</p>
+                    <h4 id="modal-token-display" class="text-3xl font-extrabold text-blue-600 mb-3">#0</h4>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Patient Name</p>
+                            <p id="modal-patient-name" class="text-lg font-semibold text-gray-800">N/A</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Appt. Time</p>
+                            <p id="modal-appointment-time" class="text-lg font-semibold text-gray-800">N/A</p>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="modal-body" class="mb-6 text-lg text-gray-700 font-medium">Current Status: <span id="modal-current-status" class="font-bold text-violet-600">N/A</span></p>
+
+                <div id="modal-actions" class="flex flex-col space-y-3">
+                    <!-- Status buttons will be injected here -->
+                </div>
+                <button id="modal-close-btn" class="mt-4 w-full py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Close Panel</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // Global variables for Firebase configuration (Mandatory usage)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        // --- Firebase Imports and Setup ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Set Firebase logging level to Debug
+        setLogLevel('Debug');
+
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+        let patientsCache = []; // Cache to hold the latest patient data for the modal
+
+        const MAX_TOKENS = 50;
+        const MOCK_NAMES = ["Alice Johnson", "Bob Smith", "Charlie Brown", "Diana Prince", "Ethan Hunt", "Fiona Glenanne", "George Costanza", "Hannah Baker", "Isaac Newton", "Julia Roberts"];
+
+        // --- Data Definitions ---
+        const DOCTOR_STATUS = {
+            ARRIVED: 'Arrived',
+            DEPARTED: 'Departed'
+        };
+
+        const PATIENT_STATUS = {
+            DEFAULT: 'Not Arrived',
+            WAITING: 'Waiting',
+            CONSULTING: 'Consulting',
+            FINISHED: 'Finished',
+            NOSHOW: 'No Show'
+        };
+
+        // Define the flow/next possible states for each status
+        const STATUS_FLOW = {
+            [PATIENT_STATUS.DEFAULT]: [PATIENT_STATUS.WAITING],
+            [PATIENT_STATUS.WAITING]: [PATIENT_STATUS.CONSULTING, PATIENT_STATUS.NOSHOW],
+            [PATIENT_STATUS.CONSULTING]: [PATIENT_STATUS.FINISHED],
+            [PATIENT_STATUS.FINISHED]: [],
+            [PATIENT_STATUS.NOSHOW]: []
+        };
+
+        // UI Elements
+        const doctorToggleBtn = document.getElementById('doctor-toggle-btn');
+        const doctorStatusDisplay = document.getElementById('doctor-status-display');
+        const tokenBoard = document.getElementById('token-board');
+        const modalContainer = document.getElementById('modal-container');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const modalTokenDisplay = document.getElementById('modal-token-display');
+        const modalPatientName = document.getElementById('modal-patient-name');
+        const modalAppointmentTime = document.getElementById('modal-appointment-time');
+        const modalCurrentStatus = document.getElementById('modal-current-status');
+        const modalActions = document.getElementById('modal-actions');
+        const loadingMessage = document.getElementById('loading-message');
+
+        // --- Utility Functions ---
+        function getStatusColorClass(status) {
+            switch (status) {
+                case PATIENT_STATUS.WAITING: return 'status-card status-waiting';
+                case PATIENT_STATUS.CONSULTING: return 'status-card status-consulting';
+                case PATIENT_STATUS.FINISHED: return 'status-card status-finished';
+                case PATIENT_STATUS.NOSHOW: return 'status-card status-noshow';
+                default: return 'status-card status-default';
+            }
+        }
+
+        function getNextStatusButtonColor(status) {
+            switch (status) {
+                case PATIENT_STATUS.WAITING: return 'bg-amber-500 text-white hover:bg-amber-600';
+                case PATIENT_STATUS.CONSULTING: return 'bg-violet-500 text-white hover:bg-violet-600';
+                case PATIENT_STATUS.FINISHED: return 'bg-emerald-500 text-white hover:bg-emerald-600';
+                case PATIENT_STATUS.NOSHOW: return 'bg-red-500 text-white hover:bg-red-600';
+                default: return 'bg-gray-500 text-white hover:bg-gray-600';
+            }
+        }
+
+        function closeStatusModal() {
+            modalContainer.classList.add('hidden');
+            modalContainer.classList.remove('flex');
+            modalActions.innerHTML = '';
+        }
+
+        // --- Firestore References ---
+        function getDoctorDocRef() {
+            return doc(db, 'artifacts', appId, 'public', 'data', 'clinic_status', 'doctor');
+        }
+
+        function getPatientDocRef(token) {
+            return doc(db, 'artifacts', appId, 'public', 'data', 'clinic_patients', String(token));
+        }
+
+        // --- Core Application Logic ---
+
+        // 1. Doctor Status Management
+        async function updateDoctorStatus(newStatus) {
+            if (!db || !isAuthReady) return;
+            try {
+                const docRef = getDoctorDocRef();
+                await setDoc(docRef, {
+                    status: newStatus,
+                    updatedBy: userId,
+                    timestamp: serverTimestamp()
+                });
+                console.log("Doctor status updated to:", newStatus);
+            } catch (error) {
+                console.error("Error updating doctor status:", error);
+            }
+        }
+
+        function renderDoctorPanel(status) {
+            const isArrived = status === DOCTOR_STATUS.ARRIVED;
+            doctorStatusDisplay.textContent = status;
+            doctorStatusDisplay.className = `font-bold ml-2 ${isArrived ? 'doctor-status-text-ARRIVED' : 'doctor-status-text-DEPARTED'}`;
+
+            doctorToggleBtn.textContent = isArrived ? 'Set DEPARTED' : 'Set ARRIVED';
+            doctorToggleBtn.style.backgroundColor = isArrived ? varToString('--color-danger') : varToString('--color-success');
+            
+            // Re-attach listener to avoid multiple registrations
+            doctorToggleBtn.onclick = () => {
+                const newStatus = isArrived ? DOCTOR_STATUS.DEPARTED : DOCTOR_STATUS.ARRIVED;
+                updateDoctorStatus(newStatus);
+            };
+
+            // Helper to extract CSS variable value
+            function varToString(variable) {
+                return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+            }
+        }
+
+        // 2. Patient Status Management
+        async function updatePatientStatus(token, newStatus) {
+            if (!db || !isAuthReady) return;
+            try {
+                const docRef = getPatientDocRef(token);
+                // When status changes from DEFAULT, we ensure patient details exist
+                if (newStatus === PATIENT_STATUS.WAITING && token > patientsCache.length) {
+                    // This logic ensures that if a DEFAULT token is clicked, it gets registered
+                    const mockIndex = token % MOCK_NAMES.length;
+                    const mockPatient = {
+                        token: token,
+                        name: MOCK_NAMES[mockIndex],
+                        appointmentTime: `${(8 + Math.floor(token / 10)) % 12 || 12}:${String((token % 10) * 6).padStart(2, '0')} ${((8 + Math.floor(token / 10)) > 11 ? 'PM' : 'AM')}`,
+                        status: newStatus,
+                        updatedBy: userId,
+                        timestamp: serverTimestamp()
+                    };
+                    await setDoc(docRef, mockPatient);
+                } else {
+                    await setDoc(docRef, {
+                        status: newStatus,
+                        updatedBy: userId,
+                        timestamp: serverTimestamp()
+                    }, { merge: true });
+                }
+                
+                console.log(`Token ${token} status updated to: ${newStatus}`);
+                closeStatusModal(); // Close modal after successful update
+            } catch (error) {
+                console.error(`Error updating patient ${token} status:`, error);
+            }
+        }
+
+        function openStatusModal(patient) {
+            modalContainer.classList.remove('hidden');
+            modalContainer.classList.add('flex');
+            
+            // Populate Modal Details
+            modalTokenDisplay.textContent = `#${patient.token}`;
+            modalPatientName.textContent = patient.name || 'N/A';
+            modalAppointmentTime.textContent = patient.appointmentTime || 'N/A';
+            modalCurrentStatus.textContent = patient.status;
+            
+            modalActions.innerHTML = ''; // Clear previous buttons
+
+            const nextStatuses = STATUS_FLOW[patient.status] || [];
+
+            if (nextStatuses.length === 0 && patient.status !== PATIENT_STATUS.DEFAULT) {
+                // Terminal status (Finished/No Show)
+                const p = document.createElement('p');
+                p.className = 'text-center text-gray-500 p-2 border-t mt-2';
+                p.textContent = `Token ${patient.token} is in a final status. No further actions required.`;
+                modalActions.appendChild(p);
+            } else {
+                // Show available next statuses
+                nextStatuses.forEach(status => {
+                    const button = document.createElement('button');
+                    button.textContent = `Set to: ${status}`;
+                    
+                    let buttonText = '';
+                    let buttonStyle = '';
+
+                    // Customize button text for clarity
+                    if (patient.status === PATIENT_STATUS.DEFAULT && status === PATIENT_STATUS.WAITING) {
+                        buttonText = `Patient ARRIVED (Set to Waiting)`;
+                    } else if (patient.status === PATIENT_STATUS.WAITING && status === PATIENT_STATUS.CONSULTING) {
+                        buttonText = `Start CONSULTATION (Set to Consulting)`;
+                    } else if (patient.status === PATIENT_STATUS.CONSULTING && status === PATIENT_STATUS.FINISHED) {
+                        buttonText = `Consultation FINISHED`;
+                    } else if (status === PATIENT_STATUS.NOSHOW) {
+                        buttonText = `Patient is NO SHOW (Cancel Token)`;
+                    } else {
+                        buttonText = `Set to: ${status}`;
+                    }
+
+                    button.textContent = buttonText;
+                    buttonStyle = getNextStatusButtonColor(status);
+
+                    button.className = `w-full py-3 font-semibold rounded-lg shadow-md transition duration-150 ease-in-out transform hover:scale-[1.01] active:scale-95 text-lg ${buttonStyle}`;
+                    button.onclick = () => updatePatientStatus(patient.token, status);
+                    modalActions.appendChild(button);
+                });
+            }
+        }
+
+        function renderTokenBoard(patientsData) {
+            loadingMessage.classList.add('hidden');
+            tokenBoard.innerHTML = '';
+            patientsCache = patientsData; // Update cache
+
+            // Ensure we have 50 tokens (1-50) even if not all are in Firestore
+            for (let i = 1; i <= MAX_TOKENS; i++) {
+                const mockIndex = i % MOCK_NAMES.length;
+                const patient = patientsData.find(p => p.token === i) || {
+                    token: i,
+                    status: PATIENT_STATUS.DEFAULT,
+                    lastUpdateTime: 'N/A',
+                    // Default mock details for display
+                    name: MOCK_NAMES[mockIndex],
+                    appointmentTime: `${(8 + Math.floor(i / 10)) % 12 || 12}:${String((i % 10) * 6).padStart(2, '0')} ${((8 + Math.floor(i / 10)) > 11 ? 'PM' : 'AM')}`
+                };
+
+                const card = document.createElement('div');
+                card.className = `${getStatusColorClass(patient.status)} p-4 rounded-xl flex flex-col items-center justify-center text-center status-card token-clickable`;
+                
+                // Click handler uses the full patient object now
+                card.onclick = () => openStatusModal(patient);
+
+                card.innerHTML = `
+                    <p class="text-xs font-semibold uppercase opacity-90 mb-1">${patient.status}</p>
+                    <h3 class="text-4xl font-extrabold leading-none">${patient.token}</h3>
+                    <p class="text-xs mt-2 opacity-80">${patient.name.split(' ')[0]} @ ${patient.appointmentTime}</p>
+                `;
+                tokenBoard.appendChild(card);
+            }
+        }
+
+        // 3. Data Initialization and Real-Time Listeners
+        async function initializeData() {
+            if (!firebaseConfig.apiKey) {
+                console.error("Firebase config is missing. Using mock data.");
+                // Mock data initialization if no firebase config
+                const mockPatients = Array.from({ length: MAX_TOKENS }, (_, i) => ({
+                    token: i + 1,
+                    status: i < 5 ? PATIENT_STATUS.WAITING : (i === 5 ? PATIENT_STATUS.CONSULTING : PATIENT_STATUS.DEFAULT),
+                    name: MOCK_NAMES[(i + 1) % MOCK_NAMES.length],
+                    appointmentTime: `${(8 + Math.floor(i / 10)) % 12 || 12}:${String((i % 10) * 6).padStart(2, '0')} ${((8 + Math.floor(i / 10)) > 11 ? 'PM' : 'AM')}`,
+                    lastUpdateTime: new Date().toLocaleTimeString()
+                }));
+                renderTokenBoard(mockPatients);
+                renderDoctorPanel(DOCTOR_STATUS.ARRIVED);
+                loadingMessage.classList.add('hidden');
+                return;
+            }
+            
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase Authentication Error:", error);
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    isAuthReady = true;
+                    console.log("Authentication successful. User ID:", userId);
+
+                    // 3.1. Doctor Status Listener
+                    const doctorDocRef = getDoctorDocRef();
+                    onSnapshot(doctorDocRef, (docSnap) => {
+                        let status = DOCTOR_STATUS.DEPARTED;
+                        if (docSnap.exists()) {
+                            status = docSnap.data().status || DOCTOR_STATUS.DEPARTED;
+                        } else {
+                            // If doc doesn't exist, create it with default status
+                            setDoc(doctorDocRef, { status: DOCTOR_STATUS.DEPARTED, updatedBy: 'System' });
+                        }
+                        renderDoctorPanel(status);
+                    }, (error) => {
+                        console.error("Error listening to doctor status:", error);
+                    });
+
+                    // 3.2. Patient Status Listener
+                    // We will listen to the entire collection and render the full board
+                    const q = collection(db, 'artifacts', appId, 'public', 'data', 'clinic_patients');
+                    onSnapshot(q, (snapshot) => {
+                        const patientsData = [];
+                        snapshot.forEach(doc => {
+                            const data = doc.data();
+                            // Apply mock details if patient data is not fully registered yet
+                            const token = data.token;
+                            const mockIndex = token % MOCK_NAMES.length;
+                            
+                            patientsData.push({
+                                token: token,
+                                status: data.status,
+                                name: data.name || MOCK_NAMES[mockIndex],
+                                appointmentTime: data.appointmentTime || `${(8 + Math.floor(token / 10)) % 12 || 12}:${String((token % 10) * 6).padStart(2, '0')} ${((8 + Math.floor(token / 10)) > 11 ? 'PM' : 'AM')}`,
+                                lastUpdateTime: data.timestamp ? new Date(data.timestamp.toDate()).toLocaleTimeString() : 'N/A'
+                            });
+                        });
+                        renderTokenBoard(patientsData);
+                    }, (error) => {
+                        console.error("Error listening to patient board:", error);
+                        loadingMessage.textContent = "Error loading data. Check console.";
+                    });
+
+                } else {
+                    userId = null;
+                    isAuthReady = false;
+                    console.log("User is signed out or auth failed.");
+                    // Fallback render on failure
+                    renderTokenBoard(Array.from({ length: MAX_TOKENS }, (_, i) => ({ token: i + 1, status: PATIENT_STATUS.DEFAULT, lastUpdateTime: 'N/A' })));
+                    renderDoctorPanel(DOCTOR_STATUS.DEPARTED);
+                    loadingMessage.textContent = "Please refresh to connect to Firebase.";
+                }
+            });
+        }
+
+        // --- Event Listeners for Modal ---
+        modalCloseBtn.addEventListener('click', closeStatusModal);
+        modalContainer.addEventListener('click', (e) => {
+            if (e.target === modalContainer) {
+                closeStatusModal();
+            }
+        });
+
+
+        // Start the application initialization
+        initializeData();
+
+    </script>
+
+</body>
+</html>
