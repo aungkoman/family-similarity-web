@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic OPD Queue Login</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the Inter font and a smooth background */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        /* Custom shadow for the modal to make it pop */
+        .shadow-3xl {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Login Card Container -->
+    <div class="w-full max-w-md">
+        <div class="bg-white shadow-2xl rounded-xl p-8 md:p-10 border border-gray-100">
+
+            <!-- Clinic Header and Icon -->
+            <div class="text-center mb-8">
+                <!-- Medical/Clinic Icon (Lucide-react style using inline SVG) -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-3 text-cyan-500">
+                    <path d="M12 2v20"></path>
+                    <path d="M18 6l-6 6-6-6"></path>
+                    <path d="M18 18l-6-6-6 6"></path>
+                </svg>
+                <h1 class="text-3xl font-extrabold text-gray-800">OPD Queue Login</h1>
+                <p class="text-gray-500 mt-1">Access Clinic Management Software</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form">
+                <!-- Username/Email Input -->
+                <div class="mb-5">
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Staff ID or Email</label>
+                    <input type="text" id="username" placeholder="Enter your ID or Email" required 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 shadow-sm"
+                           value="clinic-staff">
+                </div>
+
+                <!-- Password Input -->
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 shadow-sm"
+                           value="password123">
+                </div>
+
+                <!-- Message Box for Feedback (Error/Success) -->
+                <div id="message-box" class="p-3 mb-6 hidden rounded-lg text-sm" role="alert">
+                    <!-- Content will be added by JavaScript -->
+                </div>
+                
+                <!-- Login Button -->
+                <button type="submit" 
+                        class="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-lg text-white font-semibold 
+                               bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 
+                               transition duration-200 transform hover:scale-[1.01] active:scale-[0.99]">
+                    <span id="button-text">Log In</span>
+                    <span id="spinner" class="hidden animate-spin h-5 w-5 border-4 border-white border-t-transparent rounded-full ml-2"></span>
+                </button>
+            </form>
+
+            <!-- Forgot Password Link -->
+            <div class="mt-6 text-center">
+                <!-- Updated the link to trigger the modal -->
+                <a href="#" id="forgot-password-link" class="text-sm text-cyan-600 hover:text-cyan-800 font-medium">Forgot Password?</a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Contact Modal HTML Structure -->
+    <div id="contact-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-white rounded-xl shadow-3xl p-6 md:p-8 w-11/12 max-w-sm transform scale-95 transition-transform duration-300">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <!-- Key Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-500 mr-2"><path d="M12 2v20M17 5H7M12 2a5 5 0 0 0-5 5v12a5 5 0 0 0 5 5h0a5 5 0 0 0 5-5V7a5 5 0 0 0-5-5z"/></svg>
+                Password Reset Assistance
+            </h2>
+            <p class="text-gray-600 mb-6">
+                Please contact the software vendor's IT support directly to reset your credentials.
+            </p>
+
+            <div class="space-y-4">
+                <!-- Phone Contact -->
+                <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-600 mr-3 flex-shrink-0"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-5.6-5.6A19.79 19.79 0 0 1 2 4.18 2 2 0 0 1 4.18 2h3a2 2 0 0 1 2 1.72 13.5 13.5 0 0 0 .58 3.32 2 2 0 0 1-.31 2.06l-.47.47a1.49 1.49 0 0 0 .38 1.83l3.86 3.86a1.49 1.49 0 0 0 1.83.38l.47-.47a2 2 0 0 1 2.06-.31 13.5 13.5 0 0 0 3.32.58 2 2 0 0 1 1.72 2v3z"></path></svg>
+                    <div>
+                        <span class="block text-xs text-gray-500">24/7 Phone Support</span>
+                        <a href="tel:+1234567890" class="text-sm font-semibold text-gray-800 hover:text-cyan-600 transition">+1 (234) 567-890</a>
+                    </div>
+                </div>
+
+                <!-- Email Contact -->
+                <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-600 mr-3 flex-shrink-0"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+                    <div>
+                        <span class="block text-xs text-gray-500">Technical Email Support</span>
+                        <a href="mailto:support@vendor.com" class="text-sm font-semibold text-gray-800 hover:text-cyan-600 transition">support@vendor.com</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Close Button -->
+            <button id="close-modal-btn" 
+                    class="mt-6 w-full py-2 bg-cyan-600 text-white rounded-lg font-medium hover:bg-cyan-700 transition duration-150 shadow-md">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript for Login Simulation and Modal Handling -->
+    <script>
+        // --- Login Simulation Logic ---
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Stop default form submission
+
+            const form = event.target;
+            const username = form.elements.username.value;
+            const password = form.elements.password.value;
+            const messageBox = document.getElementById('message-box');
+            const button = form.querySelector('button[type="submit"]');
+            const buttonText = document.getElementById('button-text');
+            const spinner = document.getElementById('spinner');
+
+            // Hide previous messages
+            messageBox.classList.add('hidden');
+            
+            // Show loading state
+            buttonText.textContent = 'Logging in...';
+            spinner.classList.remove('hidden');
+            button.disabled = true;
+
+            // Simulate Network Delay (2 seconds)
+            setTimeout(() => {
+                // Hide loading state
+                buttonText.textContent = 'Log In';
+                spinner.classList.add('hidden');
+                button.disabled = false;
+
+                // Simple validation check (Case-sensitive for simulation)
+                const isSuccess = username === 'clinic-staff' && password === 'password123';
+
+                if (isSuccess) {
+                    // Success State
+                    messageBox.textContent = 'Login successful! Redirecting to OPD Dashboard...';
+                    messageBox.className = 'p-3 mb-6 rounded-lg text-sm bg-green-100 text-green-700';
+                    // In a real app, you would redirect here: 
+                    // window.location.href = '../dashboard';
+                    // Redirect to the parent directory's dashboard folder using replace()
+                    // This uses the correct relative path: up one directory (..) then into the dashboard folder
+                    window.location.replace('./dashboard'); 
+                } else {
+                    // Error State
+                    messageBox.textContent = 'Invalid credentials. Please check your Staff ID and password.';
+                    messageBox.className = 'p-3 mb-6 rounded-lg text-sm bg-red-100 text-red-700';
+                    form.elements.password.value = ''; // Clear password field on error
+                }
+                
+                // Show the message box
+                messageBox.classList.remove('hidden');
+
+            }, 2000); // 2 second delay
+        });
+
+        // --- Modal Handling Logic ---
+        const contactModal = document.getElementById('contact-modal');
+        const forgotPasswordLink = document.getElementById('forgot-password-link');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const modalDialog = contactModal.children[0]; // The inner content div
+
+        /**
+         * Shows the contact modal with transition effects.
+         * @param {Event} event 
+         */
+        function showModal(event) {
+            if (event) event.preventDefault();
+            // 1. Remove hidden/pointer-blocking classes
+            contactModal.classList.remove('opacity-0', 'pointer-events-none');
+            // 2. Start scale-up transition
+            modalDialog.classList.remove('scale-95');
+            modalDialog.classList.add('scale-100');
+        }
+
+        /**
+         * Hides the contact modal with transition effects.
+         */
+        function hideModal() {
+            // 1. Start scale-down transition
+            modalDialog.classList.remove('scale-100');
+            modalDialog.classList.add('scale-95');
+            // 2. Wait for scale-down transition (300ms) then hide container
+            contactModal.classList.add('opacity-0');
+            setTimeout(() => {
+                contactModal.classList.add('pointer-events-none');
+            }, 300); // Matches the duration-300 transition
+        }
+
+        // Event Listeners
+        forgotPasswordLink.addEventListener('click', showModal);
+        closeModalBtn.addEventListener('click', hideModal);
+
+        // Close modal when clicking on the dark backdrop
+        contactModal.addEventListener('click', function(e) {
+            if (e.target === contactModal) {
+                hideModal();
+            }
+        });
+    </script>
+
+</body>
+</html>
