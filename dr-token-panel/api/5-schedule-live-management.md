@@ -1,4 +1,4 @@
-# Today Schedules API
+# Live Management / Detail Schedule API
 
 ## Endpoint
 
@@ -16,7 +16,7 @@ AUTH - Bearer Token
 ```json
 {
   "status": true,
-  "message": "Live Management",
+  "message": "Schedule Detail",
   "data": {
     "id": 1,
     "doctor_id": 1,
