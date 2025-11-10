@@ -8,8 +8,8 @@ POST - api/v2/login
 
 ```json
 {
-    "email" : "admin@drtoken.com.mm",
-    "password" : "password"
+  "email": "admin@drtoken.com.mm",
+  "password": "password"
 }
 ```
 
@@ -17,24 +17,30 @@ POST - api/v2/login
 
 ```json
 {
-    "status" : true,
-    "message" : "Login Success",
-    "data" : {
-        "id" : 1,
-        "name" : "User Name",
-        "email" : "admin@drtoken.com.mm",
-        "role_id" : 1,
-        "role" : {
-            "id" : 1,
-            "name" : "Admin"
-        },
-        "status_id" : 1,
-        "status" : {
-            "id" : 1,
-            "name" : "Active"
-        },
-        "access_token" : "thisIsVeryLongAccessTokenJWT"
+  "status": true,
+  "message": "Login Success",
+  "data": {
+    "user": {
+      "id": 1,
+      "name": "User Name",
+      "email": "admin@drtoken.com.mm",
+      "role_id": 1,
+      "role": {
+        "id": 1,
+        "name": "Admin"
+      },
+      "status_id": 1,
+      "status": {
+        "id": 1,
+        "name": "Active"
+      },
+      "access_token": "thisIsVeryLongAccessTokenJWT"
+    },
+    "clinic": {
+      "id": 1,
+      "name": "Mt. Everest"
     }
+  }
 }
 ```
 
@@ -42,17 +48,14 @@ POST - api/v2/login
 
 ```json
 {
-    "status" : true,
-    "message" : "Email and Password do not match",
-    "error" : {
-        "email" : [
-            "email is required",
-            "email already existed in the system",
-        ],
-        "password" : [
-            "password is required",
-            "password should has at least one capital character"
-        ]
-    }
+  "status": true,
+  "message": "Email and Password do not match",
+  "error": {
+    "email": ["email is required", "email already existed in the system"],
+    "password": [
+      "password is required",
+      "password should has at least one capital character"
+    ]
+  }
 }
 ```

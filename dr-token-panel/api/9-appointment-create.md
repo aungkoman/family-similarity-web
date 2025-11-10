@@ -8,13 +8,15 @@ AUTH - Bearer Token
 ## Request
 
 ```json
-{
-  "status_id": 1,
-  "token" : 1,
-  "patient_id" : 0, // existing patient | new patient
-  "patient_name" : "Patient Name",
-  "patient_phone" : "0912346578"
-}
+[
+  {
+    "status_id": 1,
+    "token": 1,
+    "patient_id": 0, // existing patient | new patient
+    "patient_name": "Patient Name",
+    "patient_phone": "0912346578"
+  }
+]
 ```
 
 ## Response - Success - 200

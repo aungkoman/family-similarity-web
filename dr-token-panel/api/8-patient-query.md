@@ -2,7 +2,7 @@
 
 ## Endpoint
 
-GET - api/v2/patient
+GET - api/v2/patients
 AUTH - Bearer Token
 Parameters - 
 
@@ -32,7 +32,7 @@ phone = 0912346587
 
 ```json
 {
-  "status": true,
-  "message": "Unexpected error occured"
+  "status": false,
+  "message": "Patient Not Found"
 }
 ```
