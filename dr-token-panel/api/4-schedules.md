@@ -62,7 +62,13 @@ status_id = 1
             "end_datetime" : "2025-11-08 21:00:00",
             "appointment_count" : 23
         }
-    ]
+    ],
+    "pagination" : {
+        "total" : 120,
+        "per_page" : 20,
+        "current_page" : 2,
+        "last_page" : 21
+    }
 }
 ```
 
