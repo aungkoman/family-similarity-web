@@ -1,4 +1,4 @@
-# Create New Appointment
+# Doctor Listing API
 
 ## Endpoint
 
@@ -31,7 +31,8 @@ status_id = 1
       "status": {
         "id": 1,
         "name": "Active"
-      }
+      },
+      "weekly_schedule_count" : 1
     },
     {
       "id": 1,
@@ -41,7 +42,8 @@ status_id = 1
       "status": {
         "id": 2,
         "name": "InActive"
-      }
+      },
+      "weekly_schedule_count" : 2
     }
   ],
   "pagination": {
