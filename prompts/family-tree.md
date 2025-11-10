@@ -19,7 +19,7 @@ our parent also has three and two siblings
 - [ ] forgot password on click -> should show to modal to contact via email or phone
 - [ ] today schedules' appointment should be pending, arrived, not finished
 
-- [ ] today schedule page should show today appointmets
+- [ ] today schedule page should show today appointmets where doctor are pending , not depart , along with appointment with pending statte
 - [ ] today schedule show in dashboard and nav bar listing should same 
 - [ ] today schedules status should be pending, not depart, with all appointment are also pending
 - [ ] Edit appointment page should show Status Dropdown

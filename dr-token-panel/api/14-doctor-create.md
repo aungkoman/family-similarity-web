@@ -43,7 +43,7 @@ clinic_id should get from Bearer Token if logged in user is clinic owner
     "name": "Dr. Mg Mg",
     "speciality": "OG",
     "status_id": 1,
-    "status": {
+    "status": { 
       "id": 1,
       "name": "Active"
     },
