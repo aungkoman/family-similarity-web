@@ -2,7 +2,7 @@
 
 ## Endpoint
 
-GET - api/v2/schedules/1/live
+GET - api/v2/schedules/{id}
 AUTH - Bearer Token
 
 ## Request
