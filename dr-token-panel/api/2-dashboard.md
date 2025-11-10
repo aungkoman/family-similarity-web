@@ -1,4 +1,4 @@
-# Login API
+# Dashboard API
 
 ## Endpoint
 
