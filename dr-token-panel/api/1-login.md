@@ -32,7 +32,8 @@ POST - api/v2/login
         "status" : {
             "id" : 1,
             "name" : "Active"
-        }
+        },
+        "access_token" : "thisIsVeryLongAccessTokenJWT"
     }
 }
 ```
