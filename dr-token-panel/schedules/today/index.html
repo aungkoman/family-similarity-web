@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Today's Schedule</title>
+	<style>
+		body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f7fafc}
+		.container{max-width:900px;margin:20px auto;padding:0 16px}
+		header{background:#fff;padding:12px 16px;border-bottom:1px solid #e6eef6}
+		ul{list-style:none;padding:0;margin:0}
+		li{background:#fff;border:1px solid #e6eef6;padding:12px;margin-bottom:8px;border-radius:6px;display:flex;justify-content:space-between;align-items:center}
+		.meta{color:#475569;font-size:13px}
+		.actions a{margin-left:8px;text-decoration:none;padding:6px 8px;border-radius:6px;font-size:13px}
+		.btn-live{background:#0891b2;color:#fff}
+		.btn-detail{background:#06b6d4;color:#fff}
+	</style>
+</head>
+<body>
+	<header>
+		<div class="container">
+			<strong>Today's Schedule</strong>
+			<nav style="float:right"><a href="../list/index.html">Full list</a></nav>
+		</div>
+	</header>
+	<main class="container">
+		<p class="meta">Showing schedules for today. Use Live to open the live management panel.</p>
+		<ul id="today-list"></ul>
+	</main>
+	<script>
+		const today = [
+			{id:1, doctor:'Dr. Aung Aung', start:'14:30', status:'Pending', tokenStart:1, tokenEnd:50},
+			{id:2, doctor:'Dr. Khin Thandar', start:'15:00', status:'Arrived', tokenStart:1, tokenEnd:30}
+		];
+		const ul = document.getElementById('today-list');
+		today.forEach(s => {
+			const li = document.createElement('li');
+			li.innerHTML = `<div>
+				<div style="font-weight:600">${s.doctor} — ${s.start}</div>
+				<div class="meta">Status: ${s.status} • Token: ${s.tokenStart}-${s.tokenEnd}</div>
+			</div>
+			<div class="actions">
+				<a class="btn-detail" href="../detail/index.html?id=${s.id}">Detail</a>
+				<a class="btn-live" href="../../live-management/index.html">Live</a>
+			</div>`;
+			ul.appendChild(li);
+		});
+	</script>
+</body>
+</html>

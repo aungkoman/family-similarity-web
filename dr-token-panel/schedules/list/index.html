@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Schedule List</title>
+	<style>
+		body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f5f7fb;color:#111}
+		header{background:#fff;border-bottom:1px solid #e6e9ef;padding:12px 16px}
+		.container{max-width:980px;margin:20px auto;padding:0 16px}
+		table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e6e9ef}
+		th,td{padding:10px 12px;border-bottom:1px solid #eef2f6;text-align:left}
+		th{background:#fafbff;font-weight:600;color:#334155}
+		a.btn{display:inline-block;padding:6px 10px;background:#0ea5a4;color:#fff;border-radius:6px;text-decoration:none;font-size:13px}
+		a.link{color:#0ea5a4;text-decoration:none}
+		.actions{white-space:nowrap}
+		nav a{margin-right:12px;color:#0b7285;text-decoration:none}
+		.muted{color:#6b7280;font-size:13px}
+	</style>
+</head>
+<body>
+	<header>
+		<div class="container">
+			<strong>Clinic OPD — Schedule List</strong>
+			<nav style="float:right">
+				<a href="../dashboard/index.html">Dashboard</a>
+				<a href="../login/index.html">Logout</a>
+			</nav>
+		</div>
+	</header>
+
+	<main class="container">
+		<p class="muted">This simple static schedule list is for demonstration. Click <em>Details</em> to view a schedule page.</p>
+
+		<table aria-label="Schedule list">
+			<thead>
+				<tr>
+					<th>#</th>
+					<th>Doctor</th>
+					<th>Start Time</th>
+					<th>Status</th>
+					<th class="actions">Action</th>
+				</tr>
+			</thead>
+			<tbody id="schedules">
+				<!-- rows inserted by JS -->
+			</tbody>
+		</table>
+
+		<p style="margin-top:12px"><a class="btn" href="../new.html">New Appointment</a></p>
+	</main>
+
+	<script>
+		const schedules = [
+			{id:1, doctor:'Dr. Aung Aung', time:'2025-11-10 14:30', status:'Pending', patients:12},
+			{id:2, doctor:'Dr. Khin Thandar', time:'2025-11-10 15:00', status:'Open', patients:0},
+			{id:3, doctor:'Dr. Nilar Win', time:'2025-11-11 09:00', status:'Cancelled', patients:0},
+		];
+
+		const tbody = document.getElementById('schedules');
+		schedules.forEach(s => {
+			const tr = document.createElement('tr');
+			tr.innerHTML = `
+				<td>${s.id}</td>
+				<td><a class="link" href="../../doctors/detail.html?name=${encodeURIComponent(s.doctor)}">${s.doctor}</a></td>
+				<td>${s.time}</td>
+				<td>${s.status}</td>
+				<td class="actions"><a class="btn" href="../detail/index.html?id=${s.id}">Details (${s.patients})</a>
+					<a style="margin-left:8px" class="link" href="../../live-management/index.html">Live</a></td>`;
+			tbody.appendChild(tr);
+		});
+	</script>
+</body>
+</html>
+

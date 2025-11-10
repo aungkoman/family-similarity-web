@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Doctor Detail</title>
+  <style>
+    body{font-family:Segoe UI,Arial,sans-serif;background:#f5f7fb;margin:0}
+    .container{max-width:800px;margin:20px auto;padding:0 16px}
+    header{background:#fff;padding:12px 16px;border-bottom:1px solid #e6eef6}
+    .card{background:#fff;padding:14px;border:1px solid #e6eaf0;border-radius:8px}
+    .times{margin-top:8px}
+  </style>
+</head>
+<body>
+  <header><div class="container"><strong id="name">Doctor</strong><nav style="float:right"><a href="index.html">Back</a></nav></div></header>
+  <main class="container">
+    <section class="card">
+      <h3 id="role">Specialty</h3>
+      <div class="times">
+        <strong>Weekly schedule</strong>
+        <ul>
+          <li>Wed 6:00 PM</li>
+          <li>Sun 9:00 AM</li>
+        </ul>
+      </div>
+      <p style="margin-top:12px"><a href="../schedules/list/index.html">View schedules for this doctor</a></p>
+    </section>
+  </main>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('name') || 'Dr. Unknown';
+    document.getElementById('name').textContent = name;
+    document.getElementById('role').textContent = 'General Practitioner';
+  </script>
+</body>
+</html>
