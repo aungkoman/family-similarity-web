@@ -16831,7 +16831,7 @@
       "width": 185.18367541843932,
       "height": 43.09305654391346,
       "angle": 0,
-      "strokeColor": "#1971c2",
+      "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 2,
@@ -16845,8 +16845,8 @@
         "type": 3
       },
       "seed": 290843375,
-      "version": 188,
-      "versionNonce": 1609522159,
+      "version": 189,
+      "versionNonce": 749259423,
       "isDeleted": false,
       "boundElements": [
         {
@@ -16854,7 +16854,7 @@
           "id": "eDlvqWNaCHrb7IRjjdw_z"
         }
       ],
-      "updated": 1762765500192,
+      "updated": 1762797307347,
       "link": null,
       "locked": false
     },
@@ -16866,7 +16866,7 @@
       "width": 163.31988525390625,
       "height": 25,
       "angle": 0,
-      "strokeColor": "#1971c2",
+      "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 2,
@@ -16878,11 +16878,11 @@
       "index": "b9L",
       "roundness": null,
       "seed": 744011023,
-      "version": 169,
-      "versionNonce": 681313807,
+      "version": 170,
+      "versionNonce": 1729491665,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1762765500192,
+      "updated": 1762797307347,
       "link": null,
       "locked": false,
       "text": "Today Schedules",
@@ -16903,7 +16903,7 @@
       "width": 185.18367541843932,
       "height": 43.09305654391346,
       "angle": 0,
-      "strokeColor": "#1e1e1e",
+      "strokeColor": "#1971c2",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 2,
@@ -16917,8 +16917,8 @@
         "type": 3
       },
       "seed": 213728047,
-      "version": 224,
-      "versionNonce": 644770863,
+      "version": 225,
+      "versionNonce": 1178595039,
       "isDeleted": false,
       "boundElements": [
         {
@@ -16926,7 +16926,7 @@
           "id": "lnrxRBHkDD5YHBJe92uP0"
         }
       ],
-      "updated": 1762765500192,
+      "updated": 1762797309597,
       "link": null,
       "locked": false
     },
@@ -16938,7 +16938,7 @@
       "width": 93.75991821289062,
       "height": 25,
       "angle": 0,
-      "strokeColor": "#1e1e1e",
+      "strokeColor": "#1971c2",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 2,
@@ -16950,11 +16950,11 @@
       "index": "b9N",
       "roundness": null,
       "seed": 384564559,
-      "version": 213,
-      "versionNonce": 625937999,
+      "version": 214,
+      "versionNonce": 824324753,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1762765500192,
+      "updated": 1762797309597,
       "link": null,
       "locked": false,
       "text": "Schedules",
