@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Ensures proper rendering and touch zooming on mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internet Speed Tester</title>
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load Google Font "Inter" -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Apply the Inter font family */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Custom styles for the gauge */
+        /* We will use JavaScript to animate the numbers, but CSS transitions can help */
+        #speedValue, #speedUnit, #testStatus {
+            transition: all 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <main class="w-full max-w-md p-6 text-center">
+        
+        <h1 class="text-3xl md:text-4xl font-bold mb-8 text-gray-200">Internet Speed Tester</h1>
+
+        <!-- START: Gauge Display -->
+        <!-- This is the main circular display for the speed test -->
+        <div id="gauge" class="relative w-64 h-64 md:w-72 md:h-72 mx-auto mb-8 bg-gray-800 rounded-full shadow-2xl flex items-center justify-center">
+            <!-- Inner circle giving a nested effect -->
+            <div class="w-56 h-56 md:w-64 md:h-64 bg-gray-900 rounded-full shadow-inner flex flex-col items-center justify-center p-4">
+                
+                <!-- The status of the test (e.g., Ping, Download) -->
+                <div id="testStatus" class="text-lg font-semibold text-gray-400 h-6 mb-2">
+                    Press Start
+                </div>
+                
+                <!-- The dynamic speed value -->
+                <div id="speedValue" class="text-6xl md:text-7xl font-black text-cyan-400 leading-none">
+                    --
+                </div>
+                
+                <!-- The unit (e.g., ms, Mbps) -->
+                <div id="speedUnit" class="text-xl font-bold text-gray-400 mt-2">
+                    Mbps
+                </div>
+            </div>
+        </div>
+        <!-- END: Gauge Display -->
+
+        <!-- START: Results Section -->
+        <!-- This grid will show the final results. It's hidden initially, but we'll just use placeholders. -->
+        <div id="results" class="grid grid-cols-3 gap-4 w-full mb-8">
+            <!-- Ping Result -->
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+                <div class="text-sm font-semibold text-gray-400 mb-1">Ping</div>
+                <div id="pingResult" class="text-2xl font-bold text-cyan-300">--</div>
+                <div class="text-xs text-gray-500">ms</div>
+            </div>
+            
+            <!-- Download Result -->
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+                <div class="text-sm font-semibold text-gray-400 mb-1">Download</div>
+                <div id="downloadResult" class="text-2xl font-bold text-green-400">--</div>
+                <div class="text-xs text-gray-500">Mbps</div>
+            </div>
+            
+            <!-- Upload Result -->
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+                <div class="text-sm font-semibold text-gray-400 mb-1">Upload</div>
+                <div id="uploadResult" class="text-2xl font-bold text-purple-400">--</div>
+                <div class="text-xs text-gray-500">Mbps</div>
+            </div>
+        </div>
+        <!-- END: Results Section -->
+
+        <!-- START: Control Button -->
+        <button id="startButton" class="w-full max-w-xs px-8 py-4 bg-cyan-500 text-gray-900 font-bold rounded-full text-lg shadow-lg transition-all duration-300 ease-in-out
+            hover:bg-cyan-400 hover:shadow-cyan-400/30
+            focus:outline-none focus:ring-4 focus:ring-cyan-500 focus:ring-opacity-50
+            disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed">
+            Start Test
+        </button>
+        <!-- END: Control Button -->
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get references to all the UI elements
+            const startButton = document.getElementById('startButton');
+            const statusEl = document.getElementById('testStatus');
+            const speedEl = document.getElementById('speedValue');
+            const unitEl = document.getElementById('speedUnit');
+            const pingResultEl = document.getElementById('pingResult');
+            const downloadResultEl = document.getElementById('downloadResult');
+            const uploadResultEl = document.getElementById('uploadResult');
+
+            let isTesting = false;
+
+            // Add click listener to the start button
+            startButton.addEventListener('click', () => {
+                if (isTesting) return;
+                startTest();
+            });
+
+            /**
+             * Main function to start the simulated test
+             */
+            async function startTest() {
+                isTesting = true;
+                startButton.disabled = true;
+                startButton.textContent = 'Testing...';
+
+                // 1. Reset the UI
+                resetUI();
+
+                // 2. Simulate Ping Test
+                await simulatePing();
+                await sleep(500); // Pause between tests
+
+                // 3. Simulate Download Test
+                const downloadSpeed = await simulateSpeedTest(4000, 150); // 4s, up to ~150 Mbps
+                downloadResultEl.textContent = downloadSpeed;
+                await sleep(500); // Pause between tests
+
+                // 4. Simulate Upload Test
+                const uploadSpeed = await simulateSpeedTest(3500, 50); // 3.5s, up to ~50 Mbps
+                uploadResultEl.textContent = uploadSpeed;
+
+                // 5. Test complete
+                statusEl.textContent = 'Results';
+                startButton.disabled = false;
+                startButton.textContent = 'Run Test Again';
+                isTesting = false;
+            }
+
+            /**
+             * Resets the UI to its initial state
+             */
+            function resetUI() {
+                statusEl.textContent = 'Connecting...';
+                speedEl.textContent = '--';
+                unitEl.textContent = 'Mbps';
+                pingResultEl.textContent = '--';
+                downloadResultEl.textContent = '--';
+                uploadResultEl.textContent = '--';
+            }
+
+            /**
+             * Utility function to pause execution
+             * @param {number} ms - Milliseconds to sleep
+             */
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            /**
+             * Simulates the ping test
+             */
+            async function simulatePing() {
+                statusEl.textContent = 'Testing Ping...';
+                unitEl.textContent = 'ms';
+                speedEl.textContent = '...';
+                
+                await sleep(500 + Math.random() * 500); // Wait for a random time
+                
+                // Generate a fake ping value
+                const ping = Math.floor(10 + Math.random() * 40);
+                
+                pingResultEl.textContent = ping;
+                speedEl.textContent = ping;
+                statusEl.textContent = 'Ping';
+            }
+
+            /**
+             * Simulates a speed test (download or upload) with a nice animation
+             * @param {number} duration - How long the test should run (in ms)
+             * @param {number} maxSpeed - The target maximum speed to simulate
+             * @returns {Promise<string>} - Resolves with the final simulated speed as a string
+             */
+            function simulateSpeedTest(duration, maxSpeed) {
+                return new Promise(resolve => {
+                    statusEl.textContent = maxSpeed > 100 ? 'Testing Download...' : 'Testing Upload...';
+                    unitEl.textContent = 'Mbps';
+
+                    let startTime = null;
+                    let currentSpeed = 0;
+
+                    const step = (timestamp) => {
+                        if (!startTime) startTime = timestamp;
+                        const progress = timestamp - startTime;
+                        
+                        // Simulate a ramp-up and fluctuation
+                        // This uses a sine curve for a smooth ease-in and adds noise
+                        let progressPercent = Math.min(progress / duration, 1);
+                        let targetSpeed = maxSpeed * Math.sin(progressPercent * (Math.PI / 2));
+                        
+                        // Add realistic noise/fluctuation
+                        currentSpeed = targetSpeed * (0.9 + Math.random() * 0.2);
+                        if (currentSpeed < 0) currentSpeed = 0;
+
+                        speedEl.textContent = currentSpeed.toFixed(2);
+
+                        if (progress < duration) {
+                            // Keep the animation going
+                            window.requestAnimationFrame(step);
+                        } else {
+                            // Animation finished, settle on a final "realistic" value
+                            const finalSpeed = (maxSpeed * (0.85 + Math.random() * 0.15)).toFixed(2);
+                            speedEl.textContent = finalSpeed;
+                            resolve(finalSpeed);
+                        }
+                    };
+
+                    // Start the animation loop
+                    window.requestAnimationFrame(step);
+                });
+            }
+
+        });
+    </script>
+
+</body>
+</html>
